@@ -1,6 +1,6 @@
 # Iterative_Volterra_Propagator
 Volterra integral equations of the second kind take the form
-f (t) = g(t) + ∫ K(t, s)f (s)ds, t0 ≤ t ≤ tf (1.1)
+f (t) = g(t) + ∫ K(t, s)f(s)ds, t_0 ≤ t ≤ t_f (1.1)
 for two functions f and g and an integral kernel K. Studied first by Liouville [8] and later Volterra [14],
 these equations arise in a variety of disciplines, including material science (linear viscoelasticity equations)
 and probability (the renewal equation). More generally, any first order differential equation can be converted
