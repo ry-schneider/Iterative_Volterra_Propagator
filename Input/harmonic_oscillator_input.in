@@ -1,0 +1,80 @@
+
+!*********************SPATIAL BOX PARAMETERS*******************************
+
+! max coordinate of spatial box (plus/minus)
+box_size: 10.0
+
+! number of steps in spatial box
+spatial_step_size: 0.1
+
+! number of bands in symmetric matrix (1 is tridiagonal)
+band_num_sym_mat: 1 
+
+! grid type (options: half_grid, full_symmetric_grid)
+grid_type: full_symmetric_grid
+
+
+!****************POTENTIAL AND PULSE PARAMETERS****************************
+
+! type of potential (options: soft_coulomb, gaussian)
+potential_type: soft_coulomb
+
+! soft coulomb potential factor
+soft_core_eps: 1.0d0 
+
+! gaussian potential amplitude
+gauss_pot_amplitude: 3.0
+
+! gaussian potential exponent
+gauss_pot_exponent: 0.1 
+
+! percentage of time pulse is on
+time_field_on_percent: 1.0
+
+! amplitude of laser pulse
+pulse_amp: 1.0
+
+! frequency of laser pulse
+pulse_freq: 1.0d0
+
+! phase of laser pulse
+pulse_phase: 0.000 
+
+! laser pulse envelope (options: smooth_pulse, square_pulse)
+pulse_type: smooth_pulse
+
+
+!********************PROPAGATION PARAMETERS******************************
+
+! final propagation time
+total_time: 100d0
+
+! time step size (dt)
+time_step_size: 0.1d0 
+
+! propagation method for matrix exponentials (options: diagonalization, chebyshev, lanczos)
+prop_method: chebyshev
+
+! max number of iterations for lanczos
+lancz_iterations: 25
+
+! convergence threshold for lanczos
+lancz_threshold: 1.d-12
+
+! max number of terms in chebyshev expansion
+chebyshev_terms: 1000
+
+! threshold for truncating chebyshev expansion
+chebyshev_threshold: 1.d-15 
+
+! iteration type (options: short_time, jacobi, gauss_seidel)
+it_type: jacobi
+
+! number of quadrature points
+quad_pt: 10
+
+! convergence criteria for iteration
+it_tolerance: 1.d-10
+
+! number of states in harmonic oscillator basis expansion
+states: 200
