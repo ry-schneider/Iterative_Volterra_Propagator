@@ -33,6 +33,7 @@
 
 # Extras
 *~
+*.dat
 
 # Folders
 build

@@ -81,10 +81,14 @@ module parameters
   integer                    :: quad_pt
   !> convergence criteria for iteration
   real(8)                    :: it_tolerance
+  !> limit on the number of iterations allowed
+  integer                    :: it_cap
 
   !**********************************************************************
-  ! harmonic oscillator parameters
+  ! example problem parameters
   !**********************************************************************
+  !> example problem type
+  character(:), allocatable  :: example_problem
   !> number of states in harmonic oscillator basis expansion
   integer                    :: states
 

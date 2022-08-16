@@ -9,7 +9,7 @@
    use Lagrange_weights
    implicit none
    private
-   public iterative_loop
+   public iterative_loop, convergence_test
 
    
 contains
@@ -73,7 +73,7 @@ contains
         iterative_ans(:,:) = inhomogeneity(:,:)
 
         ! iterate until converged
-        do while (.not. (converged .or. it_num > 5*n))
+        do while (.not. (converged .or. it_num > it_cap))
            phi(:,:) = iterative_ans(:,:)
 
            ! jacobi iteration

@@ -1,4 +1,3 @@
-
 !*********************SPATIAL BOX PARAMETERS*******************************
 
 ! max coordinate of spatial box (plus/minus)
@@ -75,6 +74,12 @@ quad_pt: 10
 
 ! convergence criteria for iteration
 it_tolerance: 1.d-10
+
+! cap on number of iterations
+it_cap: 30
+
+! example problem (used in data file name)
+example_problem: harmonic_oscillator
 
 ! number of states in harmonic oscillator basis expansion
 states: 200

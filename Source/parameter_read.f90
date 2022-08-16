@@ -3,14 +3,14 @@ module parameter_read
   use fconfig
   implicit none
   private
-  public harmonic_oscillator_read
+  public harmonic_oscillator_read, two_level_atom_read
 
 contains
 
   subroutine harmonic_oscillator_read
     type(config)        :: conf
 
-    call conf%read_file('harmonic_oscillator_input')
+    call conf%read_file('Input/harmonic_oscillator_input.in')
 
     ! read spatial parameters
     call conf%value_from_key("box_size", l)
@@ -60,7 +60,11 @@ contains
     call conf%value_from_key('it_type', it_type)
     call conf%value_from_key('quad_pt', quad_pt)
     call conf%value_from_key('it_tolerance', it_tolerance)
+    call conf%value_from_key('it_cap', it_cap)
+
+    ! read harmonic oscillator parameters
     call conf%value_from_key('states', states)
+    call conf%value_from_key('example_problem', example_problem)
 
     call make_datafile_name
 
@@ -69,6 +73,38 @@ contains
     print *, '************************************'
     
   end subroutine harmonic_oscillator_read
+
+
+
+  subroutine two_level_atom_read
+    type(config)        :: conf
+
+    call conf%read_file('Input/two_level_atom_input.in')
+
+    ! read propagation parameters
+    call conf%value_from_key('total_time', t_intv)
+    call conf%value_from_key('time_step_size', dt)
+    t_tot = int(t_intv/dt)
+
+    ! read pulse parameters
+    call conf%value_from_key('pulse_amp', E_0)
+
+    ! read iterative parameters
+    call conf%value_from_key('it_type', it_type)
+    call conf%value_from_key('quad_pt', quad_pt)
+    call conf%value_from_key('it_tolerance', it_tolerance)
+    call conf%value_from_key('it_cap', it_cap)
+
+    ! read example problem parameters
+    call conf%value_from_key('example_problem', example_problem)
+
+    call make_datafile_name
+
+    print *, '************************************'
+    print *, 'Beginning computations!'
+    print *, '************************************'
+    
+  end subroutine two_level_atom_read
 
 
   !--------------------------------------------------------------------
@@ -85,14 +121,11 @@ contains
   !--------------------------------------------------------------------
   subroutine make_datafile_name
     character(len=64)     :: info
-    character(len=32)     :: lanczos
-    character (len=32)    :: sb, sbcnl
 
-    write(info, 1001) h, l, dt, t_intv
+    write(info, 1001) dt, t_intv
 
 
-    datafilename = trim(example_problem) // '_' // trim(pulse_name) // &
-      '_' // trim(info)
+    datafilename = trim(example_problem) // '_' // trim(info)
 
     datafilename = trim(datafilename) // '.dat'
 

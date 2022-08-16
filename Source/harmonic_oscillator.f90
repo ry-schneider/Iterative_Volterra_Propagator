@@ -21,7 +21,7 @@ program harmonic_oscillator
     real(8), allocatable        :: work(:)
     complex(8), allocatable     :: gs_diag(:)
     complex(8), allocatable     :: gs_offd1(:), gs_offd2(:)
-    integer                     :: i, j, k, m, l, info
+    integer                     :: i, j, k, m, r, info
     integer                     :: iteration_count, max_iter, step_count
 
     call harmonic_oscillator_read
@@ -99,8 +99,8 @@ program harmonic_oscillator
        h_t = 0.5d0*(x_zero + ii*p_zero)
        
        pop_prob(1) = abs(zexp(g_t))*abs(zexp(g_t))
-       do l = 2,m
-          pop_prob(l) = (2d0**(l-1))/factorial(l-1)*pop_prob(1)*(abs(h_t)**(2*(l-1)))
+       do r = 2,m
+          pop_prob(r) = (2d0**(r-1))/factorial(r-1)*pop_prob(1)*(abs(h_t)**(2*(r-1)))
        end do
 
        ! run error comparison

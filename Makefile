@@ -13,16 +13,16 @@ lib_objects := $(lib_f90:.f90=.o) $(lib_f:.f=.o)
 
 objects := \
 	$(lib_objects) \
-	fconfig.o \
-	parameters.o \
-	grid.o \
-	potential.o \
-	banded_matrices.o\
-	pulse.o \
-	propagator.o\
-	integral_method.o\
-	examples.o\
-  main.o 
+	Source/parameters.o \
+	Source/fconfig.o \
+	Source/parameter_read.o \
+	Source/grid.o \
+	Source/potential.o \
+	Source/banded_matrices.o\
+	Source/pulse.o \
+	Source/propagator.o\
+	Source/integral_method.o\
+	Source/two_level_atom.o 
 
 
 F90comp:=gfortran
