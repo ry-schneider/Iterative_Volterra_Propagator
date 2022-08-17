@@ -40,8 +40,8 @@ contains
      procedure(propagator_func), pointer      :: propagator
      procedure(initialize_variables), pointer :: initialize
 
-     pulse => select_pulse_type(pulse_name, 'length')
-     call select_propagator_type(prop_method, 'length', propagator, initialize)
+     pulse => select_pulse_type(pulse_name)
+     call select_propagator_type(prop_method, propagator, initialize)
 
      it_num = 0
      n = quad_pt

@@ -27,17 +27,16 @@ public  propagator_func, initialize_variables, select_propagator_type
  contains
 
   !Function to enable selecting a propagator type appropite for the problem
-  subroutine select_propagator_type(propagator_name, gauge, f_ptr, init_ptr)
-    character(len=*), intent(in) :: propagator_name, gauge
+  subroutine select_propagator_type(propagator_name, f_ptr, init_ptr)
+    character(len=*), intent(in) :: propagator_name
     procedure(propagator_func), pointer :: f_ptr 
     procedure(initialize_variables), pointer :: init_ptr
 
     f_ptr => null()
     init_ptr => null()
 
-    if (trim(gauge) == 'length') then
-      select case (trim(propagator_name))
-          
+    select case (trim(propagator_name))
+      
       case('diagonalization')
          init_ptr => sb_eigensolve
          f_ptr => diag_prop
@@ -54,18 +53,13 @@ public  propagator_func, initialize_variables, select_propagator_type
         print*, propagator_name
         stop 'above method is not programmed'
         
-      end select
-     
-    else if (trim(gauge) == 'velocity') then
-         print*, 'velocity gauge is not programmed with:', propagator_name
-         stop 
-    end if
+    end select
 
     ! if we didn't find a function we liked in the switch, then undefined behavior
     if (.NOT. ASSOCIATED(f_ptr)) then
-      print *, propagator_name, gauge
-      stop "pulse::select_pulse_type - Invalid pulse type or gauge requested"
-   end if
+      print *, propagator_name
+      stop "invalid pulse type"
+    end if
    
   end subroutine select_propagator_type
 

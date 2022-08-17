@@ -88,7 +88,7 @@ program harmonic_oscillator
                - cos((alpha-2)*(t+dt))/(alpha-2) + 1/(alpha-2))
 
        else
-          print *, 'Analytic solution for choice of omega_zero not programmed.'
+          print *, 'Analytic solution for choice of omega not programmed.'
           stop
        end if
 
