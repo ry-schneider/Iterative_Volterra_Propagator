@@ -15,11 +15,7 @@ endif()
 
 
 if(CMAKE_Fortran_COMPILER_ID MATCHES Intel)
-<<<<<<< HEAD
     #find_package(mkl REQUIRED PATHS /opt/intel/oneapi/mkl/2021.3.0/latest/lib)
-=======
-    find_package(mkl REQUIRED PATHS /opt/intel/oneapi/mkl/2021.3.0/latest/lib)
->>>>>>> b3cc6873c5d37396804b97841cd574754164820e
     set(CMAKE_Fortran_FLAGS         "${CMAKE_Fortran_FLAGS}")
     set(CMAKE_Fortran_FLAGS_DEBUG   "-cpp -g -traceback -check all -debug all")
     set(CMAKE_Fortran_FLAGS_RELEASE "-cpp -Ofast")
