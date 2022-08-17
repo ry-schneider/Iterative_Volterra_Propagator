@@ -82,7 +82,7 @@ public  propagator_func, initialize_variables, select_propagator_type
     ans = matmul(transpose(mat%eigenvectors), v)
     
     do i = 1,size(v)
-       ans(i) = complex(cos(-local_dt*mat%eigenvalues(i)), sin(-local_dt*mat%eigenvalues(i)))*ans(i)
+       ans(i) = cmplx(cos(-local_dt*mat%eigenvalues(i)), sin(-local_dt*mat%eigenvalues(i)))*ans(i)
     end do
 
     ans = matmul(mat%eigenvectors, ans)
@@ -186,7 +186,7 @@ public  propagator_func, initialize_variables, select_propagator_type
        call zschmab(Q(:,1), Q(:,2), 1.d-10, size(psi), 1, 1, m)
        
        ! project on first lanczos vector
-       phi(:) = complex(cos(-local_dt*alpha(1)), sin(-local_dt*alpha(1)))*dot_product(Q(:,1), psi)*Q(:,1)
+       phi(:) = cmplx(cos(-local_dt*alpha(1)), sin(-local_dt*alpha(1)))*dot_product(Q(:,1), psi)*Q(:,1)
 
        ! start iteration, adding an extra vector until convergence is reached 
        k = 2
@@ -208,7 +208,7 @@ public  propagator_func, initialize_variables, select_propagator_type
           ! use diagonalization to apply the exponential to psi
           dummy(1:k) = matmul(transpose(eigenvectors(1:k,1:k)), matmul(transpose(conjg(Q(:,1:k))), psi))
           do i = 1,k
-             dummy(i) = complex(cos(-local_dt*eigenvalues(i)), sin(-local_dt*eigenvalues(i)))*dummy(i)
+             dummy(i) = cmplx(cos(-local_dt*eigenvalues(i)), sin(-local_dt*eigenvalues(i)))*dummy(i)
           end do
           ans(:) = matmul(Q(:,1:k), matmul(eigenvectors(1:k,1:k), dummy(1:k)))
 
