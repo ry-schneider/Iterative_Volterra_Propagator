@@ -3,14 +3,23 @@ module parameter_read
   use fconfig
   implicit none
   private
-  public harmonic_oscillator_read, two_level_atom_read
+  public harmonic_oscillator_read, two_level_atom_read, two_channel_read, model_ode_read
 
 contains
+  
 
   subroutine harmonic_oscillator_read
     type(config)        :: conf
+    character(len=255)  :: conf_file_name
+    integer             :: ierr
 
-    call conf%read_file('Input/harmonic_oscillator_input.in')
+    call GET_COMMAND_ARGUMENT(1, conf_file_name, status=ierr)
+
+    if (ierr .gt. 0) then
+       conf_file_name = 'Input/harmonic_oscillator_input.in'
+    end if
+
+    call conf%read_file(conf_file_name)
 
     ! read spatial parameters
     call conf%value_from_key("box_size", l)
@@ -55,10 +64,11 @@ contains
     call conf%value_from_key('chebyshev_terms', chebyshev_terms)
     call conf%value_from_key('chebyshev_threshold', chebyshev_threshold)
 
-    ! read iterative parameters
+    ! read quadrature/iterative parameters
     call conf%value_from_key('prop_method', prop_method)
     call conf%value_from_key('it_type', it_type)
     call conf%value_from_key('quad_pt', quad_pt)
+    call conf%value_from_key('quad_type', quad_type)
     call conf%value_from_key('it_tolerance', it_tolerance)
     call conf%value_from_key('it_cap', it_cap)
 
@@ -75,11 +85,18 @@ contains
   end subroutine harmonic_oscillator_read
 
 
-
   subroutine two_level_atom_read
     type(config)        :: conf
+    character(len=255)  :: conf_file_name
+    integer             :: ierr
 
-    call conf%read_file('Input/two_level_atom_input.in')
+    call GET_COMMAND_ARGUMENT(1, conf_file_name, status=ierr)
+
+    if (ierr .gt. 0) then
+       conf_file_name = 'Input/two_level_atom_input.in'
+    end if
+
+    call conf%read_file(conf_file_name)
 
     ! read propagation parameters
     call conf%value_from_key('total_time', t_intv)
@@ -89,9 +106,10 @@ contains
     ! read pulse parameters
     call conf%value_from_key('pulse_amp', E_0)
 
-    ! read iterative parameters
+    ! read quadrature/iterative parameters
     call conf%value_from_key('it_type', it_type)
     call conf%value_from_key('quad_pt', quad_pt)
+    call conf%value_from_key('quad_type', quad_type)
     call conf%value_from_key('it_tolerance', it_tolerance)
     call conf%value_from_key('it_cap', it_cap)
 
@@ -107,6 +125,83 @@ contains
   end subroutine two_level_atom_read
 
 
+  subroutine two_channel_read
+    type(config)        :: conf
+    character(len=255)  :: conf_file_name
+    integer             :: ierr
+
+    call GET_COMMAND_ARGUMENT(1, conf_file_name, status=ierr)
+
+    if (ierr .gt. 0) then
+       conf_file_name = 'Input/two_channel_input.in'
+    end if
+
+    call conf%read_file(conf_file_name)
+
+    ! read propagation parameters
+    call conf%value_from_key('total_time', t_intv)
+    call conf%value_from_key('time_step_size', dt)
+    t_tot = int(t_intv/dt)
+
+    ! read quadrature/iterative parameters
+    call conf%value_from_key('it_type', it_type)
+    call conf%value_from_key('quad_pt', quad_pt)
+    call conf%value_from_key('quad_type', quad_type)
+    call conf%value_from_key('it_tolerance', it_tolerance)
+    call conf%value_from_key('it_cap', it_cap)
+
+    ! read example problem parameters
+    call conf%value_from_key('example_problem', example_problem)
+
+    call make_datafile_name
+
+    print *, '************************************'
+    print *, 'Beginning computations!'
+    print *, '************************************'
+    
+  end subroutine two_channel_read
+
+
+  subroutine model_ode_read
+    type(config)        :: conf
+    character(len=255)  :: conf_file_name
+    integer             :: ierr
+
+    call GET_COMMAND_ARGUMENT(1, conf_file_name, status=ierr)
+
+    if (ierr .gt. 0) then
+       conf_file_name = 'Input/model_ode_input.in'
+    end if
+
+    call conf%read_file(conf_file_name)
+
+    ! read propagation parameters
+    call conf%value_from_key('total_time', t_intv)
+    call conf%value_from_key('time_step_size', dt)
+    t_tot = int(t_intv/dt)
+
+    ! read quadrature/iterative parameters
+    call conf%value_from_key('it_type', it_type)
+    call conf%value_from_key('quad_pt', quad_pt)
+    call conf%value_from_key('quad_type', quad_type)
+    call conf%value_from_key('it_tolerance', it_tolerance)
+    call conf%value_from_key('it_cap', it_cap)
+
+    ! read example problem parameters
+    call conf%value_from_key('example_problem', example_problem)
+    call conf%value_from_key('soln_method', soln_method)
+    call conf%value_from_key('add', add)
+
+    call make_datafile_name
+
+    print *, '************************************'
+    print *, 'Beginning computations!'
+    print *, '************************************'
+    
+  end subroutine model_ode_read
+
+
+  
   !--------------------------------------------------------------------
   ! DESCRIPTION:
   !> makes the datafile name from the parameters passed into the

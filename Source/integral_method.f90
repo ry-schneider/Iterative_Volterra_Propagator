@@ -56,7 +56,7 @@ contains
         
      else
         ! compute quadrature points and weights
-        call lgr_weights(t, t+dt, pt, wt, n-2, 'gauss')
+        call lgr_weights(t, t+dt, pt, wt, n-2, quad_type)
 
         comp_wt(:,1) = wt(:,1)
         do i = 2,n-1

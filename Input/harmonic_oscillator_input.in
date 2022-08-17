@@ -72,6 +72,9 @@ it_type: jacobi
 ! number of quadrature points
 quad_pt: 10
 
+! type of quadrature (newton_cotes or gauss)
+quad_type: gauss
+
 ! convergence criteria for iteration
 it_tolerance: 1.d-10
 

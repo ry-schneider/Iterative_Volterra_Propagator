@@ -22,7 +22,7 @@ objects := \
 	Source/pulse.o \
 	Source/propagator.o\
 	Source/integral_method.o\
-	Source/two_level_atom.o 
+	Source/model_ode.o 
 
 
 F90comp:=gfortran

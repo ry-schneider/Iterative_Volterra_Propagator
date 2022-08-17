@@ -79,6 +79,8 @@ module parameters
   character(:), allocatable  :: it_type
   !> number of quadrature points
   integer                    :: quad_pt
+  !> type of quadrature points
+  character(:), allocatable  :: quad_type
   !> convergence criteria for iteration
   real(8)                    :: it_tolerance
   !> limit on the number of iterations allowed
@@ -91,6 +93,10 @@ module parameters
   character(:), allocatable  :: example_problem
   !> number of states in harmonic oscillator basis expansion
   integer                    :: states
+  !> solution method for model ode
+  character(:), allocatable  :: soln_method
+  !> add/subtract midpoint in model ode?
+  integer                    :: add
 
   !**********************************************************************
   ! other complex variables and parameters

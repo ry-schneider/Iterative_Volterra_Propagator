@@ -1,20 +1,16 @@
 
-!****************POTENTIAL AND PULSE PARAMETERS****************************
-! amplitude of laser pulse
-pulse_amp: 0.6981317
-
 !********************PROPAGATION PARAMETERS******************************
 ! final propagation time
-total_time: 9000d0
+total_time: 1d0
 
 ! time step size (dt)
-time_step_size: 1.0d0 
+time_step_size: 1d0 
 
 ! iteration type (options: short_time, jacobi, gauss_seidel)
-it_type: jacobi
+it_type: gauss_seidel
 
 ! number of quadrature points
-quad_pt: 10
+quad_pt: 8
 
 ! type of quadrature (newton_cotes or gauss)
 quad_type: gauss
@@ -25,6 +21,6 @@ it_tolerance: 1.d-10
 ! cap on number of iterations
 it_cap: 30
 
-! example problem (used in data file name)
-example_problem: two_level_atom
+! example problem (used in data file name only)
+example_problem: two_channel
 

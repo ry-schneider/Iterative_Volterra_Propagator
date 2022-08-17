@@ -1,7 +1,6 @@
 program two_level_atom
-  use parameters, only: E_0, t_intv, dt, it_type, quad_pt, it_tolerance, it_cap, ii, pi, datafilename
+  use parameters, only: E_0, t_intv, dt, it_type, quad_pt, it_tolerance, it_cap, ii, pi, datafilename, quad_type
   use parameter_read
-  use general_utility
   use timing
   use integral_method
   use Lagrange_weights
@@ -51,7 +50,7 @@ program two_level_atom
        H(2,1) = tl_pulse_midpoint
 
        ! compute quadrature points and weights
-       call lgr_weights(time, time+dt, nc_points, nc_weights, n-2,'gauss')
+       call lgr_weights(time, time+dt, nc_points, nc_weights, n-2, quad_type)
 
        ! compute composite weights
        weights(:,1) = nc_weights(:,1)
