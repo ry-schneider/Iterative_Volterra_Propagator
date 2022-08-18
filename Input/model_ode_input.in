@@ -4,13 +4,13 @@
 total_time: 25d0
 
 ! time step size (dt)
-time_step_size: 1.0d0 
+time_step_size: 0.1d0 
 
-! iteration type (options: short_time, jacobi, gauss_seidel)
-it_type: gauss_seidel
+! iteration type (options: jacobi, gauss_seidel)
+it_type: jacobi
 
 ! number of quadrature points
-quad_pt: 5
+quad_pt: 12
 
 ! type of quadrature (newton_cotes or gauss)
 quad_type: gauss
@@ -19,7 +19,7 @@ quad_type: gauss
 it_tolerance: 1.d-10
 
 ! cap on number of iterations
-it_cap: 30
+it_cap: 60
 
 ! example problem (used in data file name)
 example_problem: model_ode
@@ -28,4 +28,4 @@ example_problem: model_ode
 soln_method: volterra_iteration
 
 ! add and subtract midpoint before integrating? (1 = yes, 0 = no)
-add: 1
+add: 0

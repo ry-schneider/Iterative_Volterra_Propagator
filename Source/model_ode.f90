@@ -30,8 +30,8 @@ program model_ode
     ! initialize the problem
     mp_error = 0
     max_mp_error = 0
-    mp_psi = cmplx(1,0)
-    exact_solution = cmplx(1,0)
+    mp_psi = cmplx(1,0,8)
+    exact_solution = cmplx(1,0,8)
     step_count = 1
     max_iter = 0
 
@@ -61,7 +61,7 @@ program model_ode
           ! set up system to solve
           theta1 = alpha*mp_time
           do l = 2,n
-             RHS(l-1) = sqrt(dvr_weights(l))*(mp_points(l)-alpha)*cmplx(cos(theta1), sin(theta1))*mp_psi
+             RHS(l-1) = sqrt(dvr_weights(l))*(mp_points(l)-alpha)*cmplx(cos(theta1), sin(theta1), 8)*mp_psi
           end do
 
           do k = 2,n
@@ -105,8 +105,8 @@ program model_ode
           mp_iterate(1) = mp_psi
           do q = 2,n
              theta = alpha*mp_points(q)
-             mp_iterate(q) = cmplx(cos(-theta), sin(-theta))*(RHS(q-1)/sqrt(dvr_weights(q)) &
-                  + cmplx(cos(theta1), sin(theta1))*mp_psi)
+             mp_iterate(q) = cmplx(cos(-theta), sin(-theta), 8)*(RHS(q-1)/sqrt(dvr_weights(q)) &
+                  + cmplx(cos(theta1), sin(theta1), 8)*mp_psi)
           end do
 
           mp_psi = mp_iterate(n)
@@ -119,7 +119,7 @@ program model_ode
           mp_inhomogeneity(1) = mp_psi
           do k = 2,n
              theta = alpha*(mp_points(k) - mp_time)
-             mp_inhomogeneity(k) = cmplx(cos(-theta), sin(-theta))*mp_psi
+             mp_inhomogeneity(k) = cmplx(cos(-theta), sin(-theta), 8)*mp_psi
           end do
 
           mp_converged = .FALSE.
@@ -138,7 +138,7 @@ program model_ode
                    end do
 
                    theta = alpha*(mp_points(l) - mp_points(i))
-                   y(i) = cmplx(cos(-theta), sin(-theta))*(mp_points(i) - alpha)*mp_phi(i)
+                   y(i) = cmplx(cos(-theta), sin(-theta), 8)*(mp_points(i) - alpha)*mp_phi(i)
   
                 end do
 
@@ -196,7 +196,7 @@ program model_ode
           mp_inhomogeneity(1) = mp_psi
           do j = 2,n
              theta = alpha*(mp_points(j) - mp_time)
-             mp_inhomogeneity(j) = cmplx(cos(-theta), sin(-theta))*mp_psi
+             mp_inhomogeneity(j) = cmplx(cos(-theta), sin(-theta), 8)*mp_psi
           end do
 
           mp_converged = .FALSE.
@@ -217,12 +217,12 @@ program model_ode
                 
                    do m = 1,k-1
                       theta = alpha*(mp_points(k) - mp_points(m))
-                      b = b - ii*comp_wt(m,k-1)*cmplx(cos(-theta), sin(-theta))*mp_vpsi(m)
+                      b = b - ii*comp_wt(m,k-1)*cmplx(cos(-theta), sin(-theta), 8)*mp_vpsi(m)
                    end do
 
                    do m = k+1,n
                       theta = alpha*(mp_points(k) - mp_points(m))
-                      b = b - ii*comp_wt(m,k-1)*cmplx(cos(-theta), sin(-theta))*mp_vpsi(m)
+                      b = b - ii*comp_wt(m,k-1)*cmplx(cos(-theta), sin(-theta), 8)*mp_vpsi(m)
                    end do
 
                    mp_iterate(k) = b/(1 + ii*comp_wt(k,k-1)*(mp_points(k) - alpha))
@@ -239,7 +239,7 @@ program model_ode
                    
                    do m = 1,n
                       theta = alpha*(mp_points(k) - mp_points(m))
-                      mp_iterate(k) = mp_iterate(k) - ii*comp_wt(m,k-1)*cmplx(cos(-theta), sin(-theta))*mp_vpsi(m)
+                      mp_iterate(k) = mp_iterate(k) - ii*comp_wt(m,k-1)*cmplx(cos(-theta), sin(-theta), 8)*mp_vpsi(m)
                    end do
                    
                 end do
@@ -274,7 +274,7 @@ program model_ode
        end if
 
        do r = 1,n
-          exact_solution = cmplx(cos(-0.50d0*mp_points(r)*mp_points(r)), sin(-0.50d0*mp_points(r)*mp_points(r)))
+          exact_solution = cmplx(cos(-0.50d0*mp_points(r)*mp_points(r)), sin(-0.50d0*mp_points(r)*mp_points(r)), 8)
           mp_error = abs(mp_iterate(r) - exact_solution)
           
           if (max_mp_error < mp_error) then

@@ -6,14 +6,14 @@ total_time: 1d0
 ! time step size (dt)
 time_step_size: 1d0 
 
-! iteration type (options: short_time, jacobi, gauss_seidel)
+! iteration type (options: jacobi, gauss_seidel)
 it_type: gauss_seidel
 
 ! number of quadrature points
-quad_pt: 8
+quad_pt: 11
 
 ! type of quadrature (newton_cotes or gauss)
-quad_type: gauss
+quad_type: newton_cotes
 
 ! convergence criteria for iteration
 it_tolerance: 1.d-10

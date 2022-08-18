@@ -22,14 +22,14 @@ objects := \
 	Source/pulse.o \
 	Source/propagator.o\
 	Source/integral_method.o\
-	Source/harmonic_oscillator.o 
+	Source/model_ode.o 
 
 
-F90comp:=gfortran
+F90comp:= gfortran
 NOLINK = -c
 #LDFLAGS = -L/c:/lib/ -lblas -llapack
 
-FCFLAGS  = -g -fbacktrace
+FCFLAGS  = -O3 #-g -fbacktrace
 
 ######################################
 # SET COMPILER FLAGS DEPENDING ON WHICH ONE IS BEING USED
