@@ -10,7 +10,7 @@ time_step_size: 0.1d0
 it_type: jacobi
 
 ! number of quadrature points
-quad_pt: 12
+quad_pt: 6
 
 ! type of quadrature (newton_cotes or gauss)
 quad_type: gauss
@@ -19,7 +19,7 @@ quad_type: gauss
 it_tolerance: 1.d-10
 
 ! cap on number of iterations
-it_cap: 60
+it_cap: 30
 
 ! example problem (used in data file name)
 example_problem: model_ode
