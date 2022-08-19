@@ -67,7 +67,7 @@ chebyshev_terms: 1000
 chebyshev_threshold: 1.d-15 
 
 ! iteration type (options: short_time, jacobi, gauss_seidel)
-it_type: jacobi
+it_type: gauss_seidel
 
 ! number of quadrature points
 quad_pt: 10
