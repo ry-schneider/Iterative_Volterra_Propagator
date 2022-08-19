@@ -14,10 +14,10 @@ contains
     integer             :: ierr
 
     call GET_COMMAND_ARGUMENT(1, conf_file_name, status=ierr)
-
+    
 
     if (ierr .gt. 0) then
-           call conf%read_file('../../Input/harmonic_oscillator_input.in')
+           conf_file_name = '../../Input/harmonic_oscillator_input.in'
     end if
 
     call conf%read_file(conf_file_name)
@@ -95,7 +95,7 @@ contains
     call GET_COMMAND_ARGUMENT(1, conf_file_name, status=ierr)
 
     if (ierr .gt. 0) then
-       conf_file_name = 'Input/two_level_atom_input.in'
+       conf_file_name = '../../Input/two_level_atom_input.in'
     end if
 
     call conf%read_file(conf_file_name)
@@ -135,9 +135,9 @@ contains
     call GET_COMMAND_ARGUMENT(1, conf_file_name, status=ierr)
 
     if (ierr .gt. 0) then
-       conf_file_name = 'Input/two_channel_input.in'
+       conf_file_name = '../../Input/two_channel_input.in'
     end if
-
+    
     call conf%read_file(conf_file_name)
 
     ! read propagation parameters
@@ -172,7 +172,7 @@ contains
     call GET_COMMAND_ARGUMENT(1, conf_file_name, status=ierr)
 
     if (ierr .gt. 0) then
-       conf_file_name = 'Input/model_ode_input.in'
+       conf_file_name = '../../Input/model_ode_input.in'
     end if
 
     call conf%read_file(conf_file_name)
