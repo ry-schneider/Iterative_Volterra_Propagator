@@ -3,6 +3,7 @@ program harmonic_oscillator
   use parameter_read
   use general_utility
   use banded_matrices
+  use pulse
   use timing
   use integral_method
   implicit none
@@ -21,22 +22,27 @@ program harmonic_oscillator
     real(8), allocatable        :: work(:)
     complex(8), allocatable     :: gs_diag(:)
     complex(8), allocatable     :: gs_offd1(:), gs_offd2(:)
+    complex(8), allocatable     :: k1(:), k2(:), k3(:), k4(:)
     integer                     :: i, j, k, m, r, info
     integer                     :: iteration_count, max_iter, step_count
+
+    procedure(pulse_at_t_func), pointer  :: pulse
 
     call harmonic_oscillator_read
     m = states
     
     allocate(psi(1:m), b(1:m), eigenvectors(1:m,1:m), eigenvalues(1:m), h_diagonal(1:m), h_off_diagonal(1:m-1), &
          off_diagonal_copy(1:m-1), prop_off_diagonal(1:m-1,1:2), factorial(1:m-1), pop_prob(1:m), prob_error(1:m),&
-         max_prob_error(1:m), work(1:2*m-2), gs_diag(1:m), gs_offd1(1:m-1), gs_offd2(1:m-1))
+         max_prob_error(1:m), work(1:2*m-2), gs_diag(1:m), gs_offd1(1:m-1), gs_offd2(1:m-1), &
+         k1(1:m), k2(1:m), k3(1:m), k4(1:m))
+
+    pulse => select_pulse_type(pulse_name)
 
     alpha = 2*pi/t_intv
     max_iter = 0
     step_count = 0
     max_prob_error(:) = 0
     max_norm_error = 0
-
 
     factorial(:) = factorial_array(m-1)
     
@@ -69,8 +75,30 @@ program harmonic_oscillator
 
     do while (t < t_intv)
 
-       call iterative_loop(h_zero, t, psi, v, max_iter)
-     
+       if (soln_method == 'rk4') then
+          h_zero%diagonal(:) = h_zero%diagonal(:) + pulse(t)*v%diagonal(:)
+          h_zero%offdiagonal(:,:) = h_zero%offdiagonal(:,:) + pulse(t)*v%offdiagonal(:,:)
+          k1(:) = -ii*sb_matvec_mul(h_zero, psi)
+
+          h_zero%diagonal(:) = h_zero%diagonal(:) + (pulse(t+0.5d0*dt) - pulse(t))*v%diagonal(:)
+          h_zero%offdiagonal(:,:) = h_zero%offdiagonal(:,:) + (pulse(t+0.5d0*dt) - pulse(t))*v%offdiagonal(:,:)
+
+          k2(:) = -ii*sb_matvec_mul(h_zero, psi(:) + 0.5d0*dt*k1(:))
+          k3(:) = -ii*sb_matvec_mul(h_zero, psi(:) + 0.5d0*dt*k2(:))
+
+          h_zero%diagonal(:) = h_zero%diagonal(:) + (pulse(t+dt) - pulse(t+0.5d0*dt))*v%diagonal(:)
+          h_zero%offdiagonal(:,:) = h_zero%offdiagonal(:,:) + (pulse(t+dt) - pulse(t+0.5d0*dt))*v%offdiagonal(:,:)
+          k4(:) = -ii*sb_matvec_mul(h_zero, psi(:) + dt*k3(:))
+          
+          psi(:) = psi(:) + dt*(1.0d0/6)*(k1(:) + 2*k2(:) + 2*k3(:) + k4(:))
+
+          h_zero%diagonal(:) = h_zero%diagonal(:) - pulse(t+dt)*v%diagonal(:)
+          h_zero%offdiagonal(:,:) = h_zero%offdiagonal(:,:) - pulse(t+dt)*v%offdiagonal(:,:)
+
+       else
+          call iterative_loop(h_zero, t, psi, v, max_iter)
+       end if
+
        step_count = step_count + 1
 
        ! compute analytic population probabilities at time t+dt

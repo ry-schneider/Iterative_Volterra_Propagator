@@ -49,10 +49,10 @@ pulse_type: smooth_pulse
 total_time: 100d0
 
 ! time step size (dt)
-time_step_size: 0.1d0 
+time_step_size: 1.0d0 
 
 ! propagation method for matrix exponentials (options: diagonalization, chebyshev, lanczos)
-prop_method: chebyshev
+prop_method: diagonalization
 
 ! max number of iterations for lanczos
 lancz_iterations: 25
@@ -70,7 +70,7 @@ chebyshev_threshold: 1.d-15
 it_type: gauss_seidel
 
 ! number of quadrature points
-quad_pt: 10
+quad_pt: 20
 
 ! type of quadrature (newton_cotes or gauss)
 quad_type: gauss
@@ -79,10 +79,13 @@ quad_type: gauss
 it_tolerance: 1.d-10
 
 ! cap on number of iterations
-it_cap: 30
+it_cap: 100
 
 ! example problem (used in data file name)
 example_problem: harmonic_oscillator
 
 ! number of states in harmonic oscillator basis expansion
 states: 200
+
+! solution method (rk4 or volterra_iteration)
+soln_method: rk4
