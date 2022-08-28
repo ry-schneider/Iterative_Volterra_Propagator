@@ -7,7 +7,7 @@ add_library (src_files SHARED banded_matrices.f90
                 parameters.f90
                 potential.f90
                 propagator.f90
-                pulse.f90  )
+                pulse_module.f90  )
                
 
 add_executable(harmonic_oscil.exe 

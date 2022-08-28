@@ -3,7 +3,7 @@ program harmonic_oscillator
   use parameter_read
   use general_utility
   use banded_matrices
-  use pulse
+  use pulse_module
   use timing
   use integral_method
   implicit none

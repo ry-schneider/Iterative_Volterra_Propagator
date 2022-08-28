@@ -1,7 +1,7 @@
 module propagator
 use parameters !, only : idt, ii, dt, t_intv, datafilename, z_one, z_zero, lancz_itnum, lanc_threshold, chebyshev_terms, chebyshev_threshold
 use banded_matrices
-use pulse
+use pulse_module
 use timing
 use general_utility
 use grid, only: x
