@@ -7,7 +7,7 @@
 !! This module also makes the assumption that there is exactly one pulse,
 !! with the same parameters being pulled from the parameters module.
 !!
-module pulse
+module pulse_module
   use parameters, only: E_0, omega, phase, pi, t_on
   implicit none
 
@@ -66,4 +66,4 @@ contains
 
   end function smooth_length
 
-end module pulse
+end module pulse_module
