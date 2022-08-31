@@ -77,6 +77,7 @@ contains
     ! read harmonic oscillator parameters
     call conf%value_from_key('states', states)
     call conf%value_from_key('example_problem', example_problem)
+    call conf%value_from_key('soln_method', soln_method)
 
     call make_datafile_name
 

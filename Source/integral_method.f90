@@ -2,7 +2,7 @@
    use parameters
    use general_utility
    use banded_matrices
-   use pulse
+   use pulse_module
    use timing
    use propagator
    use grid, only: x
