@@ -9,6 +9,4 @@ In this paper, we present a new iterative method for solving Volterra equations 
 
 ## References
 <a id="1">[1]</a> 
- J. Liouville. Second m ́emoire sur le d ́eveloppement des fonctions ou parties de fonctions en s ́eries dont
-les divers termes sont assuj ́etis `a satisfaire `a une mˆeme  ́equation diff ́erentielle du second ordre, contenant
-un param`etre variable. Journal de Math ́ematiques Pures et Appliqu ́ees, pages 16–35, 1837
+ J. Liouville, Journal de Math&eacutematiques Pures et Appliqu&eacutees, pages 16–35, 1837
