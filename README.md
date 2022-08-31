@@ -9,4 +9,4 @@ In this paper, we present a new iterative method for solving Volterra equations 
 
 ## References
 <a id="1">[1]</a> 
- J. Liouville, Journal de Math&eacutematiques Pures et Appliqu&eacutees, pages 16–35, 1837
+ J. Liouville, Journal de Math&#xE9matiques Pures et Appliqu&#xE9es, pages 16–35, 1837
