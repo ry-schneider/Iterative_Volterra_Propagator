@@ -1,7 +1,7 @@
 # ITVOLT: An Iterative Method for Volterra Integral Equations
 Volterra integral equations of the second kind take the form
 ```math
-f(t) = g(t) + \int_{t_0}^t K(t,s) f(s) ds \hspace{1cm} t_0 \le t \le t_f
+f(t) = g(t) + \int_{t_0}^t K(t,s) f(s) ds \; \; \; t_0 \le t \le t_f
 ```
 for two functions $f$ and $g$ and an integral kernel $K$. Given an inhomogeneity $g$ and an integral kernel $K$, the equations are solved for the unknown function $f$. 
  
