@@ -57,11 +57,11 @@ While not necessary, you can also specify the input file in the command line whe
 Numerical results for each problem print out in the terminal when run. Once finished, the Build directory can be safely deleted without affecting the rest of the code.
 
 ## Contact
-Thanks for taking the time to look through out work! If you have quesitons or feedback about using this repository, reach out to Ryan Schneider at ryschnei@ucsd.edu.
+Thanks for taking the time to look through our work! If you have questions or feedback about using this repository, reach out to Ryan Schneider at ryschnei@ucsd.edu.
 
 ## References
 <a id="1">[1]</a> 
 M. Ndong, H. Tal-Ezer, R. Kosloff, and C.P. Koch. *A Chebyshev propagator with iterative time ordering for explicitly time-dependent hamiltonians.* The Journal of Chemical Physics (2010).
 
 <a id="2">[2]</a> 
-W. Wang and X. Wang. *A generalized block-by-block method for the system of linear Volterra equations of the second kind.* Wuhan Univeristy Journal of Natural Sciences (2011). 
+W. Wang and X. Wang. *A generalized block-by-block method for the system of linear Volterra equations of the second kind.* Wuhan University Journal of Natural Sciences (2011). 
