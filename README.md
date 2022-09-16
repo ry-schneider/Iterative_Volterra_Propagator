@@ -1,6 +1,8 @@
 # ITVOLT: An Iterative Method for Volterra Integral Equations
 Volterra integral equations of the second kind take the form
-$$ f(t) = g(t) + \int_{t_0}^t K(t,s) f(s) ds \hspace{1cm} t_0 \le t \le t_f$$
+```math
+f(t) = g(t) + \int_{t_0}^t K(t,s) f(s) ds \hspace{1cm} t_0 \le t \le t_f
+```
 for two functions $f$ and $g$ and an integral kernel $K$. Given an inhomogeneity $g$ and an integral kernel $K$, the equations are solved for the unknown function $f$. 
  
 ITVOLT, short for Iterative Volterra Propagator, is a novel method for solving these equations via global Lagrange interpolation. Given an approximation $f^{(k)}$ of $f$, the method proceeds by choosing a set of quadrature points in $[t_0, t_f]$ and expanding $K(t,s)f^{(k)}(s)$ in Lagrange polynomials to evaluate the Volterra equation via quadrature and obtain $f^{(k+1)}$. The numerical details of the method are presented in a forthcoming paper.
@@ -8,7 +10,9 @@ ITVOLT, short for Iterative Volterra Propagator, is a novel method for solving t
 This repository contains Fortran 90 code that applies ITVOLT to four example problems:
  * A simple two channel problem of Wang and Wang [2].
  * The one dimensional ODE 
- $$ \left[ i \frac{ \partial}{\partial t} - t \right] \psi(t) = 0, \; \; \psi(0) = 1 .$$
+ ```math
+ \left[ i \frac{ \partial}{\partial t} - t \right] \psi(t) = 0, \; \; \psi(0) = 1 .
+ ```
  * The time dependent Schrödinger equation (TDSE) for a two level atom exposed to a laser.
  * The TDSE for the driven harmonic oscillator.
  
