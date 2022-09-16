@@ -1,11 +1,11 @@
-# ITVOLT: An Iterative Method for Volterra Integral Equations
+# ITVOLT: An Iterative Solver for Volterra Integral Equations
 Volterra integral equations of the second kind take the form
 ```math
 f(t) = g(t) + \int_{t_0}^t K(t,s) f(s) ds \; \; \; t_0 \le t \le t_f
 ```
-for two functions $f$ and $g$ and an integral kernel $K$. Given an inhomogeneity $g$ and an integral kernel $K$, the equations are solved for the unknown function $f$. 
+for two functions $f$ and $g$ and an integral kernel $K$. Given an inhomogeneity $g$ and a kernel $K$, the equations are solved for the unknown function $f$. 
  
-ITVOLT, short for Iterative Volterra Propagator, is a novel method for solving these equations via global Lagrange interpolation. Given an approximation $f^{(k)}$ of $f$, the method proceeds by choosing a set of quadrature points in $[t_0, t_f]$ and expanding $K(t,s)f^{(k)}(s)$ in Lagrange polynomials to evaluate the Volterra equation via quadrature and obtain $f^{(k+1)}$. The numerical details of the method are presented in a forthcoming paper.
+ITVOLT, short for Iterative Volterra Propagator, is a novel method for solving these equations via global Lagrange interpolation. Given an approximation $f^{(k)}$ of $f$, the method proceeds by choosing a set of quadrature points in $[t_0, t_f]$ and expanding $K(t,s)f^{(k)}(s)$ in Lagrange polynomials, finding $f^{(k+1)}$ by evaluating the Volterra equation via quadrature. The numerical details of the method are presented in a forthcoming paper.
 
 This repository contains Fortran 90 code that applies ITVOLT to four example problems:
  * A simple two channel problem of Wang and Wang [2].
@@ -43,7 +43,7 @@ cd Source
 ./harmonic_oscil.exe
 ```
 
-Each problem has its own input file in the Input directory off of Iterative_Volterra_Propagator where you can change things like the number of quadrature points used, the maximum number of iterations allowed, and even what method is used to treat matrix exponentials. To edit the inputs for the harmonic oscillator without leaving the Source directory, input the following (with your favorite editor in place of emacs).
+Each problem has its own input file in the Input directory off of Iterative_Volterra_Propagator where you can change things like the number of quadrature points used, the maximum number of iterations allowed, and even what method is used to treat matrix exponentials (if applicable). To edit the inputs for the harmonic oscillator without leaving the Source directory, input the following (with your favorite editor in place of emacs).
 
 ```
 emacs ../../Input/harmonic_oscillator_input.in
