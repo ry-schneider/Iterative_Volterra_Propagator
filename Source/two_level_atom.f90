@@ -22,6 +22,13 @@ program two_level_atom
     call two_level_atom_read
     n = quad_pt
 
+    print *, 'Problem: Driven two-level atom'
+    print *, 'Iteration type: ', it_type
+    print *, 'Propagation step size:', dt
+    print *, 'Quadrature type: ', quad_type
+    print *, 'Number of quadrature points:', n
+    print *, '************************************'
+
     allocate(tl_inhomogeneity(1:2,1:n), tl_iterate(1:2,1:n), tl_phi(1:2,1:n), model_soln(1:2,1:n), model_diff(1:2,1:n), &
          nc_points(1:n), nc_weights(1:n,1:n-1), weights(1:n,1:n-1))
     
@@ -39,7 +46,6 @@ program two_level_atom
 
     open(unit=73, file=datafilename)
 
-    print *, '***Begin Time Loop***'
     call begin_timing
     time = 0
 

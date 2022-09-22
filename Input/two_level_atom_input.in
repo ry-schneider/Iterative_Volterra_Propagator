@@ -11,10 +11,10 @@ total_time: 9000d0
 time_step_size: 10d0 
 
 ! iteration type (options: short_time, jacobi, gauss_seidel)
-it_type: jacobi
+it_type: gauss_seidel
 
 ! number of quadrature points
-quad_pt: 3
+quad_pt: 6
 
 ! type of quadrature (newton_cotes or gauss)
 quad_type: gauss
@@ -23,7 +23,7 @@ quad_type: gauss
 it_tolerance: 1.d-10
 
 ! cap on number of iterations
-it_cap: 9
+it_cap: 18
 
 ! example problem (used in data file name)
 example_problem: two_level_atom

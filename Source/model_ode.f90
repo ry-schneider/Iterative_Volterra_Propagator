@@ -23,6 +23,16 @@ program model_ode
     call model_ode_read
     n = quad_pt
 
+    print *, 'Problem: Model ODE'
+    print *, 'Solution method: ', soln_method
+    if (soln_method == 'volterra_iteration') then
+       print *, 'Iteration type: ', it_type
+    end if
+    print *, 'Propagation step size:', dt
+    print *, 'Quadrature type: ', quad_type
+    print *, 'Number of quadrature points:', n
+    print *, '************************************'
+
     allocate(mp_inhomogeneity(1:n), mp_iterate(1:n), mp_phi(1:n), mp_dummy(1:n), mp_vpsi(1:n), iterative_difference(1:n), &
          A(1:n-1,1:n-1), RHS(1:n-1), X(1:n,1:n), y(1:n), dvr_weights(1:n), mp_points(1:n), mp_weights(1:n,1:n-1), &
          comp_wt(1:n,1:n-1), IPIV(1:n-1), IPIV2(1:n))
@@ -38,8 +48,7 @@ program model_ode
     alpha = 0d0
 
     open(unit=81, file=datafilename)
-
-    print *, '***Begin Time Loop***'
+    
     call begin_timing
     mp_time = 0
 
@@ -291,8 +300,6 @@ program model_ode
 
     close(81)
 
-    print *, '**************************************'
-    print *, 'Method: ', soln_method
     print *, 'Maximum solution error (at any quadrature point):', max_mp_error
     if ((soln_method == 'volterra_iteration') .or. (soln_method == 'power_expansion')) then
        print *, 'Maximum number of iterations:', max_iter

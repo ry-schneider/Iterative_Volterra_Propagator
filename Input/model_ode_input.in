@@ -28,4 +28,4 @@ example_problem: model_ode
 soln_method: volterra_iteration
 
 ! add and subtract midpoint before integrating? (1 = yes, 0 = no)
-add: 0
+add: 1

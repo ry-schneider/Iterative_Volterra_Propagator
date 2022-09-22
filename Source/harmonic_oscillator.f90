@@ -30,6 +30,17 @@ program harmonic_oscillator
 
     call harmonic_oscillator_read
     m = states
+
+    print *, 'Problem: Driven harmonic oscillator'
+    print *, 'Solution method: ', soln_method
+    if (soln_method == 'volterra_iteration') then
+       print *, 'Iteration: ', it_type, ' with ', prop_method
+    end if
+    print *, 'Propagation step size:', dt
+    print *, 'Quadrature type: ', quad_type
+    print *, 'Number of quadrature points:', quad_pt
+    print *, 'Number of states:', m
+    print *, '************************************'
     
     allocate(psi(1:m), b(1:m), eigenvectors(1:m,1:m), eigenvalues(1:m), h_diagonal(1:m), h_off_diagonal(1:m-1), &
          off_diagonal_copy(1:m-1), prop_off_diagonal(1:m-1,1:2), factorial(1:m-1), pop_prob(1:m), prob_error(1:m),&
@@ -155,17 +166,13 @@ program harmonic_oscillator
     end do
     
     close(53)
-
-    print *, 'Problem: driven harmonic oscillator'
-    print *, 'Method: ', it_type, ' with ', prop_method
-    print *, '************************************'
+    
     print *, 'Worst case population probability errors:'
     print *, 'Ground state:', max_prob_error(1)
     print *, 'First excited state:', max_prob_error(2)
     print *, 'Second excited state:', max_prob_error(3)
     print *, 'Third excited state:', max_prob_error(4)
     print *, '************************************'
-
     print *, 'Maximum norm error:', max_norm_error
     print *, '************************************'
 

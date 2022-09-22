@@ -20,6 +20,12 @@ program two_channel
     call two_channel_read
     n = quad_pt
 
+    print *, 'Problem: Two-channel'
+    print *, 'Iteration type: ', it_type
+    print *, 'Quadrature type: ', quad_type
+    print *, 'Number of quadrature points:', n
+    print *, '************************************'
+    
     allocate(trig_ih(1:2,1:n), trig_iterate(1:2,1:n), trig_phi(1:2,1:n), soln_error(1:2,1:n), &
          points(1:n), weight_sum(1:n), weights(1:n,1:n-1))
 
@@ -123,6 +129,9 @@ program two_channel
           
        end do
 
+       print *, '************************************'
+       print *, 'Error at each quadrature point: (point, first state error, second state error)'
+
        ! compute error at each point
        do r=1,n
           soln_error(1,r) = abs(cos(points(r)) - trig_iterate(1,r))
@@ -140,6 +149,8 @@ program two_channel
        iterations = 0
        
     end do
+
+    print *, '************************************'
 
     print *, 'Maximum number of iterations:', max_iter
 
