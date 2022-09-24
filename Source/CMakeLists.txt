@@ -39,8 +39,8 @@ target_link_libraries(two_level.exe src_files library ${lapackblas_lib})
 target_include_directories(two_level.exe PUBLIC $<TARGET_PROPERTY:library,Fortran_MODULE_DIRECTORY>)
 
 
-file(COPY ${CMAKE_BINARY_DIR}/../Input/harmonic_oscillator_input.in
-        DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Input/harmonic_oscillator_input.in )
+# file(COPY ${CMAKE_BINARY_DIR}/../Input/harmonic_oscillator_input.in
+#        DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/Input/harmonic_oscillator_input.in )
 
 #  SET( legacy_link   ./Input/harmonic_oscillator_input.in)
 #  SET( legacy_target ${CMAKE_BUILD_DIRECTORY}/../Input/harmonic_oscillator_input.in)
