@@ -16,7 +16,7 @@ This repository contains Fortran 90 code that applies ITVOLT to four example pro
  * The time dependent Schrödinger equation (TDSE) for a two level atom exposed to a laser.
  * The TDSE for the driven harmonic oscillator.
  
- The latter two problems, as well as the conversion of the TDSE into a Volterra integral equation, are covered in detail in work of Ndong et. al [1].
+ The latter two problems, as well as the conversion of the TDSE into a Volterra integral equation, are covered in detail in work of Ndong et al. [1].
  
 Of particular interest for other researchers, the harmonic oscillator example demonstrates how the repository can be used to solve the TDSE for any problem that satisfies the following criteria:
 1. The hamiltonian can be represented by a symmetric banded matrix.
