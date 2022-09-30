@@ -1,26 +1,26 @@
 # ITVOLT: An Iterative Solver for Volterra Integral Equations
 Volterra integral equations of the second kind take the form
-```math
-f(t) = g(t) + \int_{t_0}^t K(t,s) f(s) ds \; \; \; t_0 \le t \le t_f
-```
-for two functions $f$ and $g$ and an integral kernel $K$. Given an inhomogeneity $g$ and a kernel $K$, the equations are solved for the unknown function $f$. 
+
+$$ {\bf f}(t) = {\bf g}(t) + \int_{t_0}^t {\bf K}(t,t') {\bf f}(t') dt' $$
+
+on an interval $t_0 \le t \leq t_f$ for two vector-valued functions ${\bf f}$ and ${\bf g}$ and a matrix integral kernel ${\bf K}$. Given an inhomogeneity ${\bf g}$ and a kernel ${\bf K}$, the equations are solved for the unknown function ${\bf f}$. 
  
-ITVOLT, short for Iterative Volterra Propagator, is a novel method for solving these equations via global Lagrange interpolation. Given an approximation $f^{(k)}$ of $f$, the method proceeds by choosing a set of quadrature points in $[t_0, t_f]$ and expanding $K(t,s)f^{(k)}(s)$ in Lagrange polynomials, finding $f^{(k+1)}$ by evaluating the Volterra equation via quadrature. The numerical details of the method are presented in a forthcoming paper.
+ITVOLT, short for Iterative Volterra Propagator, is a novel method for solving these equations via global Lagrange interpolation. Given an approximation ${\bf f}^{(k)}$ of ${\bf f}$, the method proceeds by choosing a set of quadrature points in $[t_0, t_f]$ and expanding ${\bf K}(t,t'){\bf f}^{(k)}(t')$ in Lagrange polynomials, finding ${\bf f}^{(k+1)}$ by evaluating the Volterra equation via quadrature. The numerical details of the method are presented in a forthcoming paper.
 
 This repository contains Fortran 90 code that applies ITVOLT to four example problems:
  * A simple two channel problem of Wang and Wang [2].
- * The one dimensional ODE 
- ```math
- \left[ i \frac{ \partial}{\partial t} - t \right] \psi(t) = 0, \; \; \psi(0) = 1 .
- ```
- * The time dependent Schrödinger equation (TDSE) for a two level atom exposed to a laser.
- * The TDSE for the driven harmonic oscillator.
+ * The following one dimensional ODE (with initial condition $\psi(0) = 1$):
  
- The latter two problems, as well as the conversion of the TDSE into a Volterra integral equation, are covered in work of Ndong et al. [1].
+ $$ \left[ i \frac{ \partial}{\partial t} - t \right] \psi(t) = 0. $$
+ 
+ * The time dependent Schrödinger equation (TDSE) for a two level atom exposed to a laser.
+ * The TDSE for a driven harmonic oscillator.
+ 
+The latter two problems, as well as the conversion of the TDSE into a Volterra integral equation, are covered in work of Ndong et al. [1].
  
 Of particular interest for other researchers, the harmonic oscillator example demonstrates how the repository can be used to solve the TDSE for any problem that satisfies the following criteria:
-1. The hamiltonian can be represented by a symmetric banded matrix.
-2. The time dependent piece of the hamiltonian can be written as $E(t)*V$ for some function of time $E$ and some fixed, symmetric banded matrix $V$.
+1. The Hamiltonian can be represented by a symmetric banded matrix.
+2. The time dependent piece of the Hamiltonian can be written as $E(t)*{\bf V}$ for some function of time $E$ and some fixed, symmetric banded matrix ${\bf V}$.
 
 ## Usage
 After downloading the repository, begin by creating a build directory within Iterative_Volterra_Propagator.
