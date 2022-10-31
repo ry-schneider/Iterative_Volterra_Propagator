@@ -5,7 +5,7 @@ $$ {\bf f}(t) = {\bf g}(t) + \int_{t_0}^t {\bf K}(t,t') {\bf f}(t') dt' $$
 
 on an interval $t_0 \le t \leq t_f$ for two vector-valued functions ${\bf f}$ and ${\bf g}$ and a matrix integral kernel ${\bf K}$. Given an inhomogeneity ${\bf g}$ and a kernel ${\bf K}$, the equations are solved for the unknown function ${\bf f}$. 
  
-ITVOLT, short for Iterative Volterra Propagator, is a novel method for solving these equations via global Lagrange interpolation. Given an approximation ${\bf f}^{(k)}$ of ${\bf f}$, the method proceeds by choosing a set of quadrature points in $[t_0, t_f]$ and expanding ${\bf K}(t,t'){\bf f}^{(k)}(t')$ in Lagrange polynomials, finding ${\bf f}^{(k+1)}$ by evaluating the Volterra equation via quadrature. The numerical details of the method are presented in a forthcoming paper.
+ITVOLT, short for Iterative Volterra Propagator, is a novel method for solving these equations via global Lagrange interpolation. Given an approximation ${\bf f}^{(k)}$ of ${\bf f}$, the method proceeds by choosing a set of quadrature points in $[t_0, t_f]$ and expanding ${\bf K}(t,t'){\bf f}^{(k)}(t')$ in Lagrange polynomials, finding ${\bf f}^{(k+1)}$ by evaluating the Volterra equation via quadrature. The numerical details of the method are presented in a [forthcoming paper.](https://arxiv.org/abs/2210.15677)
 
 This repository contains Fortran 90 code that applies ITVOLT to four example problems:
  * A simple two channel problem of Wang and Wang [2].
