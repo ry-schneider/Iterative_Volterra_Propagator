@@ -107,6 +107,7 @@ program harmonic_oscillator
           h_zero%offdiagonal(:,:) = h_zero%offdiagonal(:,:) - pulse(t+dt)*v%offdiagonal(:,:)
 
        else
+          print *, t
           call iterative_loop(h_zero, t, psi, v, max_iter)
        end if
 
@@ -155,6 +156,8 @@ program harmonic_oscillator
        if (max_norm_error < norm_error) then
           max_norm_error = norm_error
        end if
+
+       print *, norm_error
 
        if (step_count == 10) then
           write(53,*) t+dt, prob_error(1), norm_error

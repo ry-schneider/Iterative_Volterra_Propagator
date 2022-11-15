@@ -4,6 +4,7 @@ use banded_matrices
 use pulse_module
 use timing
 use general_utility
+use Lagrange_weights
 use grid, only: x
 implicit none
 private
@@ -48,9 +49,13 @@ public  propagator_func, initialize_variables, select_propagator_type
       case('lanczos')
          init_ptr => init_lanczos
          f_ptr => lanczos_prop
+
+      case('itvolt')
+         init_ptr => init_itvolt_exp
+         f_ptr => itvolt_exp
      
       case default 
-        print*, propagator_name
+        print *, propagator_name
         stop 'above method is not programmed'
         
     end select
@@ -59,9 +64,149 @@ public  propagator_func, initialize_variables, select_propagator_type
     if (.NOT. ASSOCIATED(f_ptr)) then
       print *, propagator_name
       stop "invalid pulse type"
-    end if
+   end if
    
   end subroutine select_propagator_type
+
+
+  !applies a matrix exponential to a vector via ITVOLT
+  function itvolt_exp(mat, local_dt, v) result(ans)
+    type(banded_sym_mat), intent(in)                :: mat
+    real(8), intent(in)                             :: local_dt
+    complex(8), intent(in)                          :: v(:)
+    type(banded_sym_mat)                            :: W_j
+    complex(8)                                      :: expH_0(size(v), quad_pt)
+    complex(8)                                      :: inv_expH_0(size(v), quad_pt) 
+    complex(8)                                      :: ans(size(v))
+    real(8)                                         :: sign
+    real(8)                                         :: pt(quad_pt)
+    real(8)                                         :: wt(quad_pt, quad_pt-1), comp_wt(quad_pt, quad_pt-1)
+    complex(8)                                      :: iterate(size(v), quad_pt), comp(size(v), quad_pt)
+    complex(8)                                      :: inhomogeneity(size(v), quad_pt)
+    complex(8)                                      :: integral(size(v))
+    complex(8)                                      :: b(size(v)), gs_diag(size(v)), gs_off1(size(v)-1), gs_off2(size(v)-1)
+    logical                                         :: converged
+    real(8)                                         :: diff, max_diff
+    integer                                         :: n, i, j, k, r, p, u, s, a, it_count, info
+
+    ! check sign of local_dt
+    if (local_dt < 0d0) then
+       sign = -1d0
+    else
+       sign = 1d0
+    end if
+
+    ! select number of quadrature points
+    n = quad_pt
+
+    ! construct matrix minus its diagonal (i.e. H_j - H_0)
+    call W_j%initialize(mat%mat_size, mat%bsz, sign*mat%diagonal, sign*mat%offdiagonal)
+    W_j%diagonal(:) = 0d0
+
+    ! find quadrature points and weights
+    call lgr_weights(0d0, sign*local_dt, pt, wt, n-2, quad_type)
+    
+    ! compute the exponentials of the diagonal piece H_0
+    do a = 1,n
+       do s = 1,size(v)
+          expH_0(s,a) = cmplx(cos(sign*mat%diagonal(s)*pt(a)), sin(sign*mat%diagonal(s)*pt(a)), 8)
+       end do
+    end do
+    inv_expH_0(:,:) = conjg(expH_0(:,:))
+
+    ! add up composite weights
+    comp_wt(:,1) = wt(:,1)
+    do i=2,n-1
+       comp_wt(:,i) = comp_wt(:,i-1) + wt(:,i)
+    end do
+
+    ! iterate beginning with e^{-i*H_0*t}v 
+    inhomogeneity(:,1) = v(:)
+    do j=2,n       
+       inhomogeneity(:,j) = inv_expH_0(:,j)*v(:)
+    end do
+
+    it_count = 0
+    converged = .FALSE.
+    iterate(:,:) = inhomogeneity(:,:)
+    
+    do while (.not. (converged .or. it_count > n))
+       comp(:,:) = iterate(:,:)
+       
+       ! Jacobi iteration
+       if (it_type == 'jacobi') then
+          do r = 2,n
+             integral(:) = 0
+
+             do p = 1,n
+                integral(:) = integral(:) + comp_wt(p,r-1)*expH_0(:,p)*sb_matvec_mul(W_j, comp(:,p)) 
+             end do
+
+             iterate(:,r) = inhomogeneity(:,r) - ii*inv_expH_0(:,r)*integral(:)
+          end do
+
+       ! Gauss-Seidel iteration
+       else if (it_type == 'gauss_seidel') then
+          do r = 2,n
+             integral(:) = 0
+             
+             do p = 1,r-1
+                integral(:) = integral(:) + comp_wt(p,r-1)*expH_0(:,p)*sb_matvec_mul(W_j, iterate(:,p))
+             end do
+
+             do p = r+1,n
+                integral(:) = integral(:) + comp_wt(p,r-1)*expH_0(:,p)*sb_matvec_mul(W_j, iterate(:,p))
+             end do
+
+             b(:) = inhomogeneity(:,r) - ii*inv_expH_0(:,r)*integral(:)
+
+             ! tridiagonal system solve
+             if (mat%bsz == 1) then
+                gs_diag(:) = 1
+                gs_off1(:) = ii*comp_wt(r,r-1)*W_j%offdiagonal(:,1)
+                gs_off2(:) = gs_off1(:)
+                
+                call zgtsv(mat%mat_size, 1, gs_off1, gs_diag, gs_off2, b, mat%mat_size, info)
+
+                if (info /= 0) then
+                   print *, 'exponential system solve failed'
+                   stop
+                end if
+
+                iterate(:,r) = b(:)
+
+             else
+                print *, 'iterative system solve for band size not programmed'
+             end if
+             
+          end do
+
+       else
+          print *, 'iteration type for exponential not programmed'
+          stop
+          
+       end if
+
+       it_count = it_count + 1
+
+       ! check for convergence
+       max_diff = 0
+       do u = 2,n
+          diff = sqrt(dot_product(iterate(:,u)-comp(:,u), iterate(:,u)-comp(:,u)))
+          if (max_diff < diff) then
+             max_diff = diff
+          end if
+       end do
+
+       if (max_diff <= 1.d-10) then
+          converged = .TRUE.
+       end if
+       
+    end do
+
+    ans(:) = iterate(:,n)
+    
+  end function itvolt_exp
 
   
   ! applies a matrix exponential to a vector via full diagonalization
@@ -234,6 +379,10 @@ public  propagator_func, initialize_variables, select_propagator_type
   subroutine init_lanczos(mat)
     type(banded_sym_mat)                    :: mat
   end subroutine init_lanczos
+
+  subroutine init_itvolt_exp(mat)
+    type(banded_sym_mat)                    :: mat
+  end subroutine init_itvolt_exp
   
   
 end module propagator
