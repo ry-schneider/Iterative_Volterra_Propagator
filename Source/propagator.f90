@@ -75,14 +75,14 @@ public  propagator_func, initialize_variables, select_propagator_type
     real(8), intent(in)                             :: local_dt
     complex(8), intent(in)                          :: v(:)
     type(banded_sym_mat)                            :: W_j
-    complex(8)                                      :: expH_0(size(v), quad_pt)
-    complex(8)                                      :: inv_expH_0(size(v), quad_pt) 
+    complex(8), allocatable                         :: expH_0(:,:)
+    complex(8), allocatable                         :: inv_expH_0(:,:) 
     complex(8)                                      :: ans(size(v))
     real(8)                                         :: sign
-    real(8)                                         :: pt(quad_pt)
-    real(8)                                         :: wt(quad_pt, quad_pt-1), comp_wt(quad_pt, quad_pt-1)
-    complex(8)                                      :: iterate(size(v), quad_pt), comp(size(v), quad_pt)
-    complex(8)                                      :: inhomogeneity(size(v), quad_pt)
+    real(8), allocatable                            :: pt(:)
+    real(8), allocatable                            :: wt(:,:), comp_wt(:,:)
+    complex(8), allocatable                         :: iterate(:,:), comp(:,:)
+    complex(8), allocatable                         :: inhomogeneity(:,:)
     complex(8)                                      :: integral(size(v))
     complex(8)                                      :: b(size(v)), gs_diag(size(v)), gs_off1(size(v)-1), gs_off2(size(v)-1)
     logical                                         :: converged
@@ -97,7 +97,11 @@ public  propagator_func, initialize_variables, select_propagator_type
     end if
 
     ! select number of quadrature points
-    n = quad_pt
+    n = min(quad_pt, max(5, ceiling(quad_pt*local_dt/dt)))
+
+    ! allocate arrays based on choice of n
+    allocate(expH_0(1:size(v),1:n), inv_expH_0(1:size(v),1:n), pt(1:n), wt(1:n,1:n-1), comp_wt(1:n,1:n-1),&
+         iterate(1:size(v),1:n), comp(1:size(v),1:n), inhomogeneity(1:size(v),1:n))
 
     ! construct matrix minus its diagonal (i.e. H_j - H_0)
     call W_j%initialize(mat%mat_size, mat%bsz, sign*mat%diagonal, sign*mat%offdiagonal)
@@ -113,7 +117,7 @@ public  propagator_func, initialize_variables, select_propagator_type
        end do
     end do
     inv_expH_0(:,:) = conjg(expH_0(:,:))
-
+ 
     ! add up composite weights
     comp_wt(:,1) = wt(:,1)
     do i=2,n-1
@@ -134,7 +138,7 @@ public  propagator_func, initialize_variables, select_propagator_type
        comp(:,:) = iterate(:,:)
        
        ! Jacobi iteration
-       if (it_type == 'jacobi') then
+       if (exp_it_type == 'jacobi') then
           do r = 2,n
              integral(:) = 0
 
@@ -146,7 +150,7 @@ public  propagator_func, initialize_variables, select_propagator_type
           end do
 
        ! Gauss-Seidel iteration
-       else if (it_type == 'gauss_seidel') then
+       else if (exp_it_type == 'gauss_seidel') then
           do r = 2,n
              integral(:) = 0
              
@@ -198,7 +202,7 @@ public  propagator_func, initialize_variables, select_propagator_type
           end if
        end do
 
-       if (max_diff <= 1.d-10) then
+       if (max_diff <= 1.d-15) then
           converged = .TRUE.
        end if
        

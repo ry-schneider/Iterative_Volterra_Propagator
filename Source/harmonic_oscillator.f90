@@ -32,10 +32,13 @@ program harmonic_oscillator
     m = states
 
     print *, 'Problem: Driven harmonic oscillator'
-    print *, 'Solution method: ', soln_method
-    if (soln_method == 'volterra_iteration') then
-       print *, 'Iteration: ', it_type, ' with ', prop_method
+    if (soln_method == 'itvolt') then
+       print *, 'Solution method: Iterative Volterra Propagator (ITVOLT)'
+       print *, 'Iteration type: ', it_type
+    else
+       print *, 'Solution method: ', soln_method
     end if
+    print *, 'Method for computing  exponentials: ', prop_method
     print *, 'Propagation step size:', dt
     print *, 'Quadrature type: ', quad_type
     print *, 'Number of quadrature points:', quad_pt
@@ -107,6 +110,7 @@ program harmonic_oscillator
           h_zero%offdiagonal(:,:) = h_zero%offdiagonal(:,:) - pulse(t+dt)*v%offdiagonal(:,:)
 
        else
+          ! print *, t+dt
           call iterative_loop(h_zero, t, psi, v, max_iter)
        end if
 
@@ -139,7 +143,7 @@ program harmonic_oscillator
        
        pop_prob(1) = abs(zexp(g_t))*abs(zexp(g_t))
        do r = 2,m
-          pop_prob(r) = (2d0**(r-1))/factorial(r-1)*pop_prob(1)*(abs(h_t)**(2*(r-1)))
+          pop_prob(r) = (2d0/(r-1))*(abs(h_t)**2)*pop_prob(r-1)
        end do
 
        ! run error comparison
@@ -156,6 +160,8 @@ program harmonic_oscillator
           max_norm_error = norm_error
        end if
 
+       ! print *, norm_error
+
        if (step_count == 10) then
           write(53,*) t+dt, prob_error(1), norm_error
           step_count = 0
@@ -166,12 +172,20 @@ program harmonic_oscillator
     end do
     
     close(53)
-    
-    print *, 'Worst case population probability errors:'
+
+    print *, '************************************'
+    print *, 'Results:'
+    print *, '************************************'
+    print *, 'Worst-case population probability errors:'
     print *, 'Ground state:', max_prob_error(1)
     print *, 'First excited state:', max_prob_error(2)
     print *, 'Second excited state:', max_prob_error(3)
     print *, 'Third excited state:', max_prob_error(4)
+    print *, 'Fourth excited state:', max_prob_error(5)
+    print *, 'Fifth excited state: ', max_prob_error(6)
+    print *, '************************************'
+    print *, 'Number of states with worst-case error below 10^-13:', count(max_prob_error<1.d-13)
+    print *, 'Maximum error at any state:', maxval(max_prob_error)
     print *, '************************************'
     print *, 'Maximum norm error:', max_norm_error
     print *, '************************************'

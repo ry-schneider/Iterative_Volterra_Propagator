@@ -52,8 +52,11 @@ total_time: 100d0
 ! time step size (dt)
 time_step_size: 0.1d0 
 
-! propagation method for matrix exponentials (options: diagonalization, chebyshev, lanczos)
+! propagation method for matrix exponentials (options: diagonalization, chebyshev, lanczos, itvolt)
 prop_method: itvolt
+
+! iteration type for itvolt exponential (jacoi or gauss_seidel)
+exp_it_type: gauss_seidel
 
 ! max number of iterations for lanczos
 lancz_iterations: 25
@@ -88,5 +91,5 @@ example_problem: harmonic_oscillator
 ! number of states in harmonic oscillator basis expansion
 states: 200
 
-! solution method (rk4 or volterra_iteration)
-soln_method: volterra_iteration
+! solution method (rk4 or itvolt)
+soln_method: itvolt

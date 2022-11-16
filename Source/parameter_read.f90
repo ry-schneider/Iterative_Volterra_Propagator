@@ -68,6 +68,7 @@ contains
 
     ! read quadrature/iterative parameters
     call conf%value_from_key('prop_method', prop_method)
+    call conf%value_from_key('exp_it_type', exp_it_type)
     call conf%value_from_key('it_type', it_type)
     call conf%value_from_key('quad_pt', quad_pt)
     call conf%value_from_key('quad_type', quad_type)

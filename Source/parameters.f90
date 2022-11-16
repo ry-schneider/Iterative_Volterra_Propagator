@@ -75,6 +75,8 @@ module parameters
   !**********************************************************************
   !> propagation method
   character(:), allocatable  :: prop_method
+  !> iteration type for itvolt exponential
+  character(:), allocatable  :: exp_it_type
   !> iteration type
   character(:), allocatable  :: it_type
   !> number of quadrature points
