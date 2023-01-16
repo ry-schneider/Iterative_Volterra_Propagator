@@ -7,6 +7,7 @@ add_library(library STATIC
             gaussq.f
             gbtql2.f
             gbslve.f
+	    zgmres.f
             general_utility.f90
             hermite.f90
             Lagrange_weights.f90

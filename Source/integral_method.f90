@@ -26,8 +26,8 @@ contains
      complex(8)                               :: iterative_ans(size(psi),quad_pt), phi(size(psi),quad_pt)
      complex(8)                               :: v_psi(size(psi),quad_pt), b(size(psi))
      complex(8)                               :: gs_diag(size(psi)), gs_off1(size(psi)-1), gs_off2(size(psi)-1)
-     integer                                  :: IPIV(size(psi), size(psi))
-     complex(8)                               :: AB(3*size(psi)+1, size(psi))
+     integer                                  :: IPIV(size(psi))
+     complex(8)                               :: AB(3*mat%bsz+1, size(psi))
      complex(8)                               :: alpha
      integer                                  :: it_num
      real(8)                                  :: pt(quad_pt)

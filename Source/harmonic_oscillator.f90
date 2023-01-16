@@ -5,6 +5,7 @@ program harmonic_oscillator
   use banded_matrices
   use pulse_module
   use timing
+  use system_solve
   use integral_method
   implicit none
 
@@ -31,14 +32,18 @@ program harmonic_oscillator
     call harmonic_oscillator_read
     m = states
 
-    print *, 'Problem: Driven harmonic oscillator'
-    if (soln_method == 'itvolt') then
-       print *, 'Solution method: Iterative Volterra Propagator (ITVOLT)'
-       print *, 'Iteration type: ', it_type
+    print *, 'Problem: Driven Harmonic Oscillator'
+    if (soln_method == 'it_volt') then
+       if (it_type == 'short_time') then
+          print *, 'Solution method: Short Time Approximation'
+       else
+          print *, 'Solution method: Iterative Volterra Propagator (ITVOLT)'
+          print *, 'Iteration type: ', it_type
+       end if
     else
        print *, 'Solution method: ', soln_method
     end if
-    print *, 'Method for computing  exponentials: ', prop_method
+    print *, 'Method for computing exponentials: ', prop_method
     print *, 'Propagation step size:', dt
     print *, 'Quadrature type: ', quad_type
     print *, 'Number of quadrature points:', quad_pt
@@ -109,9 +114,12 @@ program harmonic_oscillator
           h_zero%diagonal(:) = h_zero%diagonal(:) - pulse(t+dt)*v%diagonal(:)
           h_zero%offdiagonal(:,:) = h_zero%offdiagonal(:,:) - pulse(t+dt)*v%offdiagonal(:,:)
 
+       else if (soln_method == 'linear_solve') then
+          call linear_solve(h_zero, t, psi, v, max_iter)
+          
        else
-          ! print *, t+dt
           call iterative_loop(h_zero, t, psi, v, max_iter)
+          
        end if
 
        step_count = step_count + 1
@@ -190,7 +198,12 @@ program harmonic_oscillator
     print *, 'Maximum norm error:', max_norm_error
     print *, '************************************'
 
-    if (it_type == 'jacobi' .or. it_type == 'gauss_seidel') then
+    if (soln_method == 'linear_solve') then
+       print *, 'Maximum number of GMRES iterations:',  max_iter
+       print *, '************************************'
+    end if
+
+    if (soln_method == 'it_volt' .and. it_type /= 'short_time') then
        print *, 'Maximum number of iterations:', max_iter
        print *, '************************************'
     end if

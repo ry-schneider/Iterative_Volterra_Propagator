@@ -41,6 +41,8 @@ module parameters
   integer              :: lancz_itnum
   !> lanczos convergence threshold
   real(8)              :: lanc_threshold
+  !> number of vectors to reorthogonalize against
+  integer              :: lancz_reortho
 
   !***********************************************************************
   !chebyshev variables
@@ -89,12 +91,22 @@ module parameters
   integer                    :: it_cap
 
   !**********************************************************************
+  ! GMRES parameters
+  !**********************************************************************
+  !> convergence criteria
+  real(8)                    :: gmres_tol
+  !> maximum number of iterations
+  integer                    :: gmres_max
+
+  !**********************************************************************
   ! example problem parameters
   !**********************************************************************
   !> example problem type
   character(:), allocatable  :: example_problem
   !> number of states in harmonic oscillator basis expansion
   integer                    :: states
+  !> number of samples for exponential comparison
+  integer                    :: samples
   !> solution method for model ode
   character(:), allocatable  :: soln_method
   !> add/subtract midpoint in model ode?

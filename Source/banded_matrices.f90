@@ -277,7 +277,7 @@ contains
     real(8)                         :: Q(mat%mat_size, mat%mat_size)
     real(8)                         :: work2(7*mat%mat_size)
     real(8)                         :: VL, VU
-    integer                         :: info, IL, IU, i, j
+    integer                         :: info, IL, IU, i, j, m
     integer                         :: iwork(5*mat%mat_size), ifail(mat%mat_size)
 
     ! tridiagonal case
@@ -293,12 +293,12 @@ contains
        do j = 1,mat%mat_size
           AB(1,j) = mat%diagonal(j)
           do i = j+1,min(mat%mat_size, j+mat%bsz)
-             AB(1+i-j,j) = mat%offdiagonal(j, i-j)
+             AB(1+i-j,j) = mat%offdiagonal(i, i-j)
           end do
        end do
 
-       call dsbevx('V', 'A', 'L', mat%mat_size, mat%bsz, AB, mat%bsz + 1, Q, mat%mat_size,  VL, VU, IL, &
-            IU, 0d0, mat%mat_size, mat%eigenvalues, mat%eigenvectors, mat%mat_size, work2, iwork, ifail, info)
+       call dsbevx('V', 'A', 'L', mat%mat_size, mat%bsz, AB, mat%bsz+1, Q, mat%mat_size, VL, VU, IL, &
+            IU, 0.d0, m, mat%eigenvalues, mat%eigenvectors, mat%mat_size, work2, iwork, ifail, info)
             
     end if
 
@@ -323,7 +323,7 @@ contains
     real(8)                            :: work2(7*mat%mat_size)
     integer                            :: iwork(5*mat%mat_size)
     integer                            :: ifail(mat%mat_size)
-    integer                            :: info, IL, IU, i, j
+    integer                            :: info, IL, IU, i, j, m
 
     ! tridiagonal case
     if (mat%bsz == 1) then
@@ -338,12 +338,12 @@ contains
        do j = 1,mat%mat_size
           AB(1,j) = mat%diagonal(j)
           do i = j+1,min(mat%mat_size, j+mat%bsz)
-             AB(1+i-j, j) = mat%offdiagonal(j, i-j)
+             AB(1+i-j, j) = mat%offdiagonal(i, i-j)
           end do
        end do
        
        call dsbevx('N', 'A', 'L', mat%mat_size, mat%bsz, AB, mat%bsz + 1, Q, mat%mat_size, VL, VU, &
-            IL, IU, 0d0, mat%mat_size, mat%eigenvalues, mat%eigenvectors, mat%mat_size, work2, iwork, ifail, info) 
+            IL, IU, 0d0, m, mat%eigenvalues, mat%eigenvectors, mat%mat_size, work2, iwork, ifail, info) 
        
     end if
 

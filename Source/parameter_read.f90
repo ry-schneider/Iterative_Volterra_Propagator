@@ -3,11 +3,47 @@ module parameter_read
   use fconfig
   implicit none
   private
-  public harmonic_oscillator_read, two_level_atom_read, two_channel_read, model_ode_read
+  public harmonic_oscillator_read, two_level_atom_read, two_channel_read, model_ode_read, exp_test_read
 
 contains
   
 
+  subroutine exp_test_read
+    type(config)        :: conf
+    character(len=255)  :: conf_file_name
+    integer             :: ierr
+
+    call GET_COMMAND_ARGUMENT(1, conf_file_name, status=ierr)
+
+    if (ierr .gt. 0) then
+       conf_file_name = '../../Input/exp_test_input.in'
+    end if
+
+    call conf%read_file(conf_file_name)
+
+    call conf%value_from_key('time_step_size', dt)
+    call conf%value_from_key('exp_it_type', exp_it_type)
+    call conf%value_from_key('quad_pt', quad_pt)
+    call conf%value_from_key('quad_type', quad_type)
+    call conf%value_from_key('it_tolerance', it_tolerance)
+    call conf%value_from_key('lancz_iterations', lancz_itnum)
+    call conf%value_from_key('lancz_threshold', lanc_threshold)
+    call conf%value_from_key('lancz_reortho', lancz_reortho)
+    call conf%value_from_key('chebyshev_terms', chebyshev_terms)
+    call conf%value_from_key('chebyshev_threshold', chebyshev_threshold)
+    call conf%value_from_key('example_problem', example_problem)
+    call conf%value_from_key('states', states)
+    call conf%value_from_key('samples', samples)
+    call conf%value_from_key('it_cap', it_cap)
+
+    print *, '************************************'
+    print *, 'Beginning computations!'
+    print *, '************************************'
+    
+  end subroutine exp_test_read
+
+
+  
   subroutine harmonic_oscillator_read
     type(config)        :: conf
     character(len=255)  :: conf_file_name
@@ -58,6 +94,7 @@ contains
     ! read Lanczos parameters
     call conf%value_from_key('lancz_iterations', lancz_itnum)
     call conf%value_from_key('lancz_threshold', lanc_threshold)
+    call conf%value_from_key('lancz_reortho', lancz_reortho)
     
     ! read banded matrix parameters
     call conf%value_from_key('band_num_sym_mat', band_num_sym_mat)
@@ -65,6 +102,10 @@ contains
     ! read Chebyshev parameters
     call conf%value_from_key('chebyshev_terms', chebyshev_terms)
     call conf%value_from_key('chebyshev_threshold', chebyshev_threshold)
+
+    ! read GMRES parameters
+    call conf%value_from_key('gmres_tol', gmres_tol)
+    call conf%value_from_key('gmres_max', gmres_max)
 
     ! read quadrature/iterative parameters
     call conf%value_from_key('prop_method', prop_method)

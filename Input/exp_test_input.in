@@ -1,0 +1,44 @@
+
+!********************PROPAGATION PARAMETERS******************************
+
+! time step size (dt)
+time_step_size: 0.1d0 
+
+! iteration type for itvolt exponential (jacoi or gauss_seidel)
+exp_it_type: gauss_seidel
+
+! number of quadrature points for itvolt
+quad_pt: 20
+
+! type of quadrature
+quad_type: gauss
+
+! itvolt convergence criteria
+it_tolerance: 1.d-11
+
+! maximum number of iterations for itvolt
+it_cap: 20
+
+! max number of iterations for lanczos
+lancz_iterations: 10
+
+! convergence threshold for lanczos
+lancz_threshold: 1.d-12
+
+! number of vectors to reorthogonalize against at each lanczos step (at most lancz_iterations)
+lancz_reortho: 2
+
+! max number of terms in chebyshev expansion
+chebyshev_terms: 40
+
+! threshold for truncating chebyshev expansion
+chebyshev_threshold: 1.d-12
+
+! example problem (used in data file name)
+example_problem: exp_test
+
+! problem size
+states: 201
+
+! number of samples
+samples: 100

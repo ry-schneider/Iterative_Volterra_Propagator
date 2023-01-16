@@ -3,12 +3,19 @@ add_library (src_files SHARED banded_matrices.f90
                 fconfig.f90
                 grid.f90
                 integral_method.f90
+		system_solve.f90
                 parameter_read.f90
                 parameters.f90
                 potential.f90
                 propagator.f90
-                pulse_module.f90  )
-               
+                pulse_module.f90 )
+	      
+add_executable(exp_test.exe
+		  exp_test.f90)
+
+target_link_libraries(exp_test.exe src_files library ${lapackblas_lib})
+
+target_include_directories(exp_test.exe PUBLIC $<TARGET_PROPERTY:library,Fortran_MODULE_DIRECTORY>)
 
 add_executable(harmonic_oscil.exe 
                 harmonic_oscillator.f90)

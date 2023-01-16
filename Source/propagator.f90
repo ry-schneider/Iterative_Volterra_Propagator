@@ -8,7 +8,7 @@ use Lagrange_weights
 use grid, only: x
 implicit none
 private
-public  propagator_func, initialize_variables, select_propagator_type
+public  propagator_func, initialize_variables, select_propagator_type, itvolt_exp, diag_prop, cheby_prop, lanczos_prop
 
   interface 
      function propagator_func(mat, local_dt, psi) result(ans)
@@ -87,7 +87,9 @@ public  propagator_func, initialize_variables, select_propagator_type
     complex(8)                                      :: b(size(v)), gs_diag(size(v)), gs_off1(size(v)-1), gs_off2(size(v)-1)
     logical                                         :: converged
     real(8)                                         :: diff, max_diff
-    integer                                         :: n, i, j, k, r, p, u, s, a, it_count, info
+    complex(8)                                      :: AB(3*mat%bsz+1,mat%mat_size)
+    integer                                         :: IPIV(size(v))
+    integer                                         :: n, i, j, k, r, p, u, s, a, c, d, it_count, info
 
     ! check sign of local_dt
     if (local_dt < 0d0) then
@@ -97,7 +99,7 @@ public  propagator_func, initialize_variables, select_propagator_type
     end if
 
     ! select number of quadrature points
-    n = min(quad_pt, max(5, ceiling(quad_pt*local_dt/dt)))
+    n = min(quad_pt, max(4, ceiling(quad_pt*local_dt/dt)))
 
     ! allocate arrays based on choice of n
     allocate(expH_0(1:size(v),1:n), inv_expH_0(1:size(v),1:n), pt(1:n), wt(1:n,1:n-1), comp_wt(1:n,1:n-1),&
@@ -134,7 +136,7 @@ public  propagator_func, initialize_variables, select_propagator_type
     converged = .FALSE.
     iterate(:,:) = inhomogeneity(:,:)
     
-    do while (.not. (converged .or. it_count > n))
+    do while (.not. (converged .or. it_count > it_cap-1))
        comp(:,:) = iterate(:,:)
        
        ! Jacobi iteration
@@ -180,7 +182,28 @@ public  propagator_func, initialize_variables, select_propagator_type
                 iterate(:,r) = b(:)
 
              else
-                print *, 'iterative system solve for band size not programmed'
+                ! comstruct AB for general lapack system solve
+                AB = 0
+                do c = 1,mat%mat_size
+                   do d = max(1, c-mat%bsz),  min(mat%mat_size,c+mat%bsz)
+                      if (c == d) then
+                         AB(2*mat%bsz+1+d-c,c) = 1d0
+                      else if (d < c) then 
+                         AB(2*mat%bsz+1+d-c,c) = ii*comp_wt(r,r-1)*W_j%offdiagonal(d,c-d)
+                      else
+                         AB(2*mat%bsz+1+d-c,c) = ii*comp_wt(r,r-1)*W_j%offdiagonal(d,d-c)
+                      end if
+                   end do
+                end do
+                
+                call zgbsv(mat%mat_size, mat%bsz, mat%bsz, 1, AB, 3*mat%bsz+1, IPIV, b, mat%mat_size, info)
+
+                if (info /= 0) then
+                   print *, 'exponential system solve failed'
+                   stop
+                end if
+
+                iterate(:,r) = b(:)
              end if
              
           end do
@@ -192,19 +215,24 @@ public  propagator_func, initialize_variables, select_propagator_type
        end if
 
        it_count = it_count + 1
-
+       
        ! check for convergence
-       max_diff = 0
-       do u = 2,n
-          diff = sqrt(dot_product(iterate(:,u)-comp(:,u), iterate(:,u)-comp(:,u)))
-          if (max_diff < diff) then
-             max_diff = diff
-          end if
-       end do
-
-       if (max_diff <= 1.d-15) then
+       diff = sqrt(dot_product(iterate(:,n)-comp(:,n), iterate(:,n)-comp(:,n)))
+       if (diff <= it_tolerance) then
           converged = .TRUE.
        end if
+
+       ! max_diff = 0
+       ! do u = 2,n
+       !    diff = sqrt(dot_product(iterate(:,u)-comp(:,u), iterate(:,u)-comp(:,u)))
+       !    if (max_diff < diff) then
+       !       max_diff = diff
+       !    end if
+       ! end do
+
+       ! if (max_diff <= 1.d-15) then
+       !    converged = .TRUE.
+       ! end if
        
     end do
 
@@ -274,7 +302,8 @@ public  propagator_func, initialize_variables, select_propagator_type
     mat_norm = mat
     ones(:) = 1
     mat_norm%diagonal(:) = (2.0d0/delta)*(mat_norm%diagonal(:) - e_min*ones(:)) - ones(:)
-    mat_norm%offdiagonal(:,1) = (2.0d0/delta)*mat_norm%offdiagonal(:,1)
+    mat_norm%offdiagonal(:,:) = (2.0d0/delta)*mat_norm%offdiagonal(:,:)
+    ! mat_norm%offdiagonal(:,1) = (2.0d0/delta)*mat_norm%offdiagonal(:,1)
 
     ! recursively apply expansion to input vector
     phi_old(:) = psi(:)
@@ -306,7 +335,7 @@ public  propagator_func, initialize_variables, select_propagator_type
     real(8)                                      :: eigenvalues(lancz_itnum), eigenvectors(lancz_itnum, lancz_itnum)
     real(8)                                      :: off_diagonal(lancz_itnum), work(2*lancz_itnum-2)
     complex(8)                                   :: dummy(lancz_itnum)
-    integer                                      :: k, info, i, m
+    integer                                      :: k, info, i, m, j
     real(8)                                      :: error
     logical                                      :: converged
 
@@ -365,7 +394,8 @@ public  propagator_func, initialize_variables, select_propagator_type
              beta(k) = sqrt(dot_product(w,w))
              Q(:,k+1) = w(:)/beta(k)
 
-             call zschmab(Q(:,k-1:k), Q(:,k+1), 1.d-10, size(psi), 2, 1, m)
+             j = min(k, lancz_reortho)
+             call zschmab(Q(:,k-j+1:k), Q(:,k+1), 1.d-10, size(psi), j, 1, m)
           
           end if
 
