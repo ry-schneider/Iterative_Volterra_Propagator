@@ -20,7 +20,7 @@ grid_type: full_symmetric_grid
 potential_type: soft_coulomb
 
 ! soft coulomb potential factor
-soft_core_eps: 1.0d0 
+soft_core_eps: 1.d0 
 
 ! gaussian potential amplitude
 gauss_pot_amplitude: 3.0
@@ -32,7 +32,7 @@ gauss_pot_exponent: 0.1
 time_field_on_percent: 1.0
 
 ! amplitude of laser pulse
-pulse_amp: 1.0
+pulse_amp: 1.0d0
 
 ! frequency of laser pulse
 pulse_freq: 1.0d0
@@ -50,12 +50,12 @@ pulse_type: smooth_pulse
 total_time: 100d0
 
 ! time step size (dt)
-time_step_size: 1.0d0 
+time_step_size: 1.0d0
 
 ! propagation method for matrix exponentials (options: diagonalization, chebyshev, lanczos, itvolt)
 prop_method: chebyshev
 
-! iteration type for itvolt exponential (jacoi or gauss_seidel)
+! iteration type for itvolt exponential (jacobi or gauss_seidel)
 exp_it_type: gauss_seidel
 
 ! max number of iterations for lanczos
@@ -65,7 +65,7 @@ lancz_iterations: 25
 lancz_threshold: 1.d-12
 
 ! number of vectors to reorthogonalize against at each lanczos step (at most lancz_iterations)
-lancz_reortho: 2
+lancz_reortho: 5
 
 ! max number of terms in chebyshev expansion
 chebyshev_terms: 1000
@@ -73,26 +73,26 @@ chebyshev_terms: 1000
 ! threshold for truncating chebyshev expansion
 chebyshev_threshold: 1.d-15 
 
-! iteration type (options: short_time, jacobi, gauss_seidel)
+! iteration type (options: short_time, jacobi, gauss_seidel, gmres)
 it_type: gauss_seidel
 
 ! number of quadrature points
-quad_pt: 20
+quad_pt: 22
 
 ! type of quadrature (newton_cotes or gauss)
 quad_type: gauss
 
 ! convergence criteria for iteration
-it_tolerance: 1.d-12
+it_tolerance: 1.d-10
 
 ! cap on number of iterations
 it_cap: 50
 
 ! GMRES convergence criteria
-gmres_tol: 1.d-12
+gmres_tol: 1.d-13
 
 ! maximum number of GMRES iterations before restarting
-gmres_max: 25
+gmres_max: 50
 
 ! example problem (used in data file name)
 example_problem: harmonic_oscillator
@@ -100,5 +100,5 @@ example_problem: harmonic_oscillator
 ! number of states in harmonic oscillator basis expansion
 states: 200
 
-! solution method (rk4, it_volt, or linear_solve)
-soln_method: linear_solve
+! solution method (rk4, it_volt)
+soln_method: it_volt

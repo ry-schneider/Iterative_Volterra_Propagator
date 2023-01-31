@@ -1,20 +1,32 @@
 
 !****************POTENTIAL AND PULSE PARAMETERS****************************
+! laser pulse envelope
+pulse_type: smooth_pulse
+
+! frequency of laser pulse
+pulse_freq: 0d0
+
+! phase of laser pulse
+pulse_phase: 0d0
+
 ! amplitude of laser pulse
-pulse_amp: 0.6981317
+pulse_amp: 0.349065
 
 !********************PROPAGATION PARAMETERS******************************
+! propagation method
+prop_method: two_level
+
 ! final propagation time
 total_time: 9000d0
 
 ! time step size (dt)
-time_step_size: 10d0 
+time_step_size: 1000d0 
 
-! iteration type (options: short_time, jacobi, gauss_seidel)
-it_type: gauss_seidel
+! iteration type (options: short_time, jacobi, gauss_seidel, gmres)
+it_type: gmres
 
 ! number of quadrature points
-quad_pt: 6
+quad_pt: 36
 
 ! type of quadrature (newton_cotes or gauss)
 quad_type: gauss
@@ -23,7 +35,13 @@ quad_type: gauss
 it_tolerance: 1.d-10
 
 ! cap on number of iterations
-it_cap: 18
+it_cap: 70
+
+! maximum number of GMRES iterations before restarting
+gmres_max: 70
+
+! GMRES convergence criteria
+gmres_tol: 1.d-13
 
 ! example problem (used in data file name)
 example_problem: two_level_atom

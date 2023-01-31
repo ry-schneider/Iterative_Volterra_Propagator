@@ -8,7 +8,7 @@
 !! with the same parameters being pulled from the parameters module.
 !!
 module pulse_module
-  use parameters, only: E_0, omega, phase, pi, t_on
+  use parameters, only: E_0, omega, phase, pi, t_intv, t_on
   implicit none
 
   real(8) :: envelope_time
@@ -27,7 +27,7 @@ contains
     character(len=*), intent(in) :: pulse_name
     procedure(pulse_at_t_func), pointer :: f_ptr 
 
-    envelope_time = t_on
+    envelope_time = t_intv !t_on
 
     f_ptr => null()
 

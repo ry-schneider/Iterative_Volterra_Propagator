@@ -25,7 +25,7 @@ contains
     real(8)                                       :: wt(quad_pt, quad_pt-1), comp_wt(quad_pt, quad_pt-1)
     real(8)                                       :: cntl(1:5), rinfo(1:2)
     complex(8), allocatable                       :: work(:)
-    integer                                       :: irc(1:5), icntl(1:8), info(1:3), lwork, max_iter, it_count
+    integer                                       :: irc(1:5), icntl(1:8), info(1:3), lwork, max_iter
     integer                                       :: n, d, i, j, k, p
 
     procedure(pulse_at_t_func), pointer           :: pulse
@@ -77,8 +77,6 @@ contains
     end do
     work(d*(n-1)+1:2*d*(n-1)) = RHS
 
-    it_count = 0
-
     ! call GMRES driver 
 10  call drive_zgmres(d*(n-1), d*(n-1), gmres_max, lwork, work, irc, icntl, cntl, info, rinfo)
 
@@ -102,8 +100,6 @@ contains
        end do
        
        work(irc(4):irc(4)+d*(n-1)-1) = A_v
-
-       it_count = it_count + 1
        
        go to 10
 
@@ -131,8 +127,8 @@ contains
     deallocate(work)
 
     ! track maximum number of iterations
-    if (max_iter < it_count) then
-       max_iter = it_count
+    if (max_iter < info(2)) then
+       max_iter = info(2)
     end if
 
   end subroutine linear_solve

@@ -73,7 +73,7 @@ contains
         iterative_ans(:,:) = inhomogeneity(:,:)
 
         ! iterate until converged
-        do while (.not. (converged .or. it_num > it_cap))
+        do while (.not. (converged .or. it_num >= it_cap))
            phi(:,:) = iterative_ans(:,:)
 
            ! jacobi iteration

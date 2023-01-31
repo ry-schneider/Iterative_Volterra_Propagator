@@ -9,23 +9,18 @@ program harmonic_oscillator
   use integral_method
   implicit none
 
-    type(banded_sym_mat)        :: h_zero, v, test
+    type(banded_sym_mat)        :: h_zero, v
     real(8)                     :: I1, I2, x_zero, alpha, p_zero
     complex(8)                  :: g_t, h_t
-    complex(8), allocatable     :: psi(:), b(:)
-    real(8), allocatable        :: eigenvectors(:,:)
-    real(8), allocatable        :: eigenvalues(:), h_diagonal(:)
+    complex(8), allocatable     :: psi(:)
+    real(8), allocatable        :: h_diagonal(:)
     real(8), allocatable        :: h_off_diagonal(:), off_diagonal_copy(:)
-    real(8), allocatable        :: prop_off_diagonal(:,:), factorial(:)
-    logical                     :: converged
+    real(8), allocatable        :: prop_off_diagonal(:,:)
     real(8)                     :: t, E, E_diff, norm_error, max_norm_error
     real(8), allocatable        :: pop_prob(:), prob_error(:), max_prob_error(:)
-    real(8), allocatable        :: work(:)
-    complex(8), allocatable     :: gs_diag(:)
-    complex(8), allocatable     :: gs_offd1(:), gs_offd2(:)
     complex(8), allocatable     :: k1(:), k2(:), k3(:), k4(:)
-    integer                     :: i, j, k, m, r, info
-    integer                     :: iteration_count, max_iter, step_count
+    integer                     :: i, j, k, m, r
+    integer                     :: max_iter, step_count
 
     procedure(pulse_at_t_func), pointer  :: pulse
 
@@ -50,9 +45,8 @@ program harmonic_oscillator
     print *, 'Number of states:', m
     print *, '************************************'
     
-    allocate(psi(1:m), b(1:m), eigenvectors(1:m,1:m), eigenvalues(1:m), h_diagonal(1:m), h_off_diagonal(1:m-1), &
-         off_diagonal_copy(1:m-1), prop_off_diagonal(1:m-1,1:2), factorial(1:m-1), pop_prob(1:m), prob_error(1:m),&
-         max_prob_error(1:m), work(1:2*m-2), gs_diag(1:m), gs_offd1(1:m-1), gs_offd2(1:m-1), &
+    allocate(psi(1:m), h_diagonal(1:m), h_off_diagonal(1:m-1), off_diagonal_copy(1:m-1), &
+         prop_off_diagonal(1:m-1,1:2),  pop_prob(1:m), prob_error(1:m), max_prob_error(1:m), &
          k1(1:m), k2(1:m), k3(1:m), k4(1:m))
 
     pulse => select_pulse_type(pulse_name)
@@ -62,8 +56,6 @@ program harmonic_oscillator
     step_count = 0
     max_prob_error(:) = 0
     max_norm_error = 0
-
-    factorial(:) = factorial_array(m-1)
     
     ! set up Hamiltonian, V, and initial wavefunction
     do i=1,m
@@ -114,7 +106,7 @@ program harmonic_oscillator
           h_zero%diagonal(:) = h_zero%diagonal(:) - pulse(t+dt)*v%diagonal(:)
           h_zero%offdiagonal(:,:) = h_zero%offdiagonal(:,:) - pulse(t+dt)*v%offdiagonal(:,:)
 
-       else if (soln_method == 'linear_solve') then
+       else if (it_type == 'gmres') then
           call linear_solve(h_zero, t, psi, v, max_iter)
           
        else
@@ -132,6 +124,7 @@ program harmonic_oscillator
                - cos((alpha-1)*(t+dt))/(alpha-1) + 1/(alpha-1))
          
        else if (omega == 1d0) then
+          
           I1 = -E_0/8d0*(2*(t+dt) - 2*sin(alpha*(t+dt))/alpha + sin(2*(t+dt))&
                - sin((alpha-2)*(t+dt))/(alpha-2) - sin((alpha+2)*(t+dt))/(alpha+2))
          
@@ -162,13 +155,11 @@ program harmonic_oscillator
              max_prob_error(k) = prob_error(k)
           end if
        end do
-
+       
        norm_error = abs(1 - dot_product(psi, psi))
        if (max_norm_error < norm_error) then
           max_norm_error = norm_error
        end if
-
-       ! print *, norm_error
 
        if (step_count == 10) then
           write(53,*) t+dt, prob_error(1), norm_error
@@ -190,18 +181,17 @@ program harmonic_oscillator
     print *, 'Second excited state:', max_prob_error(3)
     print *, 'Third excited state:', max_prob_error(4)
     print *, 'Fourth excited state:', max_prob_error(5)
-    print *, 'Fifth excited state: ', max_prob_error(6)
+    print *, 'Fifth excited state:', max_prob_error(6)
+    print *, 'Sixth excited state:', max_prob_error(7)
+    print *, 'Seventh excited state:', max_prob_error(8)
+    print *, 'Eigth excited state:', max_prob_error(9)
+    print *, 'Ninth excited state:', max_prob_error(10)
     print *, '************************************'
     print *, 'Number of states with worst-case error below 10^-13:', count(max_prob_error<1.d-13)
     print *, 'Maximum error at any state:', maxval(max_prob_error)
     print *, '************************************'
     print *, 'Maximum norm error:', max_norm_error
     print *, '************************************'
-
-    if (soln_method == 'linear_solve') then
-       print *, 'Maximum number of GMRES iterations:',  max_iter
-       print *, '************************************'
-    end if
 
     if (soln_method == 'it_volt' .and. it_type /= 'short_time') then
        print *, 'Maximum number of iterations:', max_iter

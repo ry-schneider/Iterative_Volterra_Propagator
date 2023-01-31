@@ -53,6 +53,10 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
       case('itvolt')
          init_ptr => init_itvolt_exp
          f_ptr => itvolt_exp
+
+      case('two_level')
+         init_ptr => init_two_level
+         f_ptr => two_level_prop
      
       case default 
         print *, propagator_name
@@ -409,6 +413,26 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
 
   end function lanczos_prop
 
+  
+  ! propagator for the two level atom
+  ! exploits the fact that the Hamiltonian is always anti-diagonal
+  function two_level_prop(mat, local_dt, psi) result(ans)
+    type(banded_sym_mat), intent(in)        :: mat
+    real(8), intent(in)                     :: local_dt
+    complex(8), intent(in)                  :: psi(:)
+    complex(8)                              :: ans(size(psi))
+    real(8)                                 :: theta
+
+    theta = mat%offdiagonal(1,1)*local_dt
+    ans(1) = cos(theta)*psi(1) - ii*sin(theta)*psi(2)
+    ans(2) = -ii*sin(theta)*psi(1) + cos(theta)*psi(2) 
+    
+  end function two_level_prop
+
+
+  subroutine init_two_level(mat)
+    type(banded_sym_mat)                    :: mat
+  end subroutine init_two_level
 
   subroutine init_lanczos(mat)
     type(banded_sym_mat)                    :: mat

@@ -144,12 +144,17 @@ contains
     call conf%read_file(conf_file_name)
 
     ! read propagation parameters
+    call conf%value_from_key('prop_method', prop_method)
     call conf%value_from_key('total_time', t_intv)
     call conf%value_from_key('time_step_size', dt)
     t_tot = int(t_intv/dt)
 
     ! read pulse parameters
+    call conf%value_from_key('pulse_type', pulse_name)
+    call conf%value_from_key('pulse_freq', omega)
+    call conf%value_from_key('pulse_phase', phase)
     call conf%value_from_key('pulse_amp', E_0)
+    t_on = t_intv
 
     ! read quadrature/iterative parameters
     call conf%value_from_key('it_type', it_type)
@@ -157,6 +162,8 @@ contains
     call conf%value_from_key('quad_type', quad_type)
     call conf%value_from_key('it_tolerance', it_tolerance)
     call conf%value_from_key('it_cap', it_cap)
+    call conf%value_from_key('gmres_max', gmres_max)
+    call conf%value_from_key('gmres_tol', gmres_tol)
 
     ! read example problem parameters
     call conf%value_from_key('example_problem', example_problem)
