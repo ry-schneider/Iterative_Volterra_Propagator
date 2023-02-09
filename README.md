@@ -91,16 +91,15 @@ Here we give a brief summary of each module in the Source directory.
 2. **fconfig.f90** - Sets up key-value read from files. [Originally due to Kyle Gerheiser.](https://github.com/kgerheiser/fconfig)
 3. **grid.f90** - Constructs a spatial grid.
 4. **harmonic_oscillator.f90** - Sets up and solves the driven harmonic oscillator TDSE.
-5. **integral_method.f90** - Contains code for two versions of ITVOLT (Jacobi and Gauss-Seidel iterations).
+5. **integral_method.f90** - Contains main subroutines for ITVOLT: iterative_loop runs the Jacobi or Gauss/Seidel versions while linear_solve runs the GMRES version. Each is to be called once on $[\tau_j, \tau_{j+1}]$.
 6. **model_ode.f90** - Sets up and solves the one-dimensional ODE mentioned above.
 7. **parameter_read.f90** - Reads problem and method parameters from input files.
 8. **parameters.f90** - Defines all common parameters.
 9. **potential.f90** - Defines various spatial potentials.
 10. **propagator.f90** - Contains code for various methods of computing matrix exponentials. Each method consists of an initialization routine (to be called once on each interval) and an actual propagator routine, which applies a matrix exponential to a vector.
 11. **pulse_module.f90** - Defines various time-dependent pulses. More generally, the pulse is the time-dependent function that multiplies the fixed matrix ${\bf V}$ to obtain the time-dependent part of ${\bf H}$.
-12. **system_solve.f90** -  Contains code for the remaining version of ITVOLT (based on GMRES).
-13. **two_channel.f90** - Sets up and solves the two-channel problem of Wang and Wang.
-14. **two_level_atom.f90** - Sets up and solves the TDSE for a two-level atom exposed to a laser. 
+12. **two_channel.f90** - Sets up and solves the two-channel problem of Wang and Wang.
+13. **two_level_atom.f90** - Sets up and solves the TDSE for a two-level atom exposed to a laser. 
 
 Routines for computing Gauss-Lobatto quadrature points and the corresponding set of Lagrange weights as well as a GMRES routine due to Frayssé et al. [1] can be found in the Library directory.
 
