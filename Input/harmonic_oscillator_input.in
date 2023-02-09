@@ -50,7 +50,7 @@ pulse_type: smooth_pulse
 total_time: 100d0
 
 ! time step size (dt)
-time_step_size: 1.0d0
+time_step_size: 0.1d0
 
 ! propagation method for matrix exponentials (options: diagonalization, chebyshev, lanczos, itvolt)
 prop_method: chebyshev
@@ -77,7 +77,7 @@ chebyshev_threshold: 1.d-15
 it_type: gauss_seidel
 
 ! number of quadrature points
-quad_pt: 22
+quad_pt: 10
 
 ! type of quadrature (newton_cotes or gauss)
 quad_type: gauss

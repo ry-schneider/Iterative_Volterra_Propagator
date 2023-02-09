@@ -5,7 +5,6 @@ program harmonic_oscillator
   use banded_matrices
   use pulse_module
   use timing
-  use system_solve
   use integral_method
   implicit none
 
@@ -187,8 +186,9 @@ program harmonic_oscillator
     print *, 'Eigth excited state:', max_prob_error(9)
     print *, 'Ninth excited state:', max_prob_error(10)
     print *, '************************************'
-    print *, 'Number of states with worst-case error below 10^-13:', count(max_prob_error<1.d-13)
+    print *, 'Number of states with worst-case error below 10^-10:', count(max_prob_error<1.d-10)
     print *, 'Maximum error at any state:', maxval(max_prob_error)
+    print *, 'Average worst-case error in the first 50 states:', sum(max_prob_error(1:50))/50d0
     print *, '************************************'
     print *, 'Maximum norm error:', max_norm_error
     print *, '************************************'
