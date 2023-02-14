@@ -18,7 +18,7 @@ Both of these examples demonstrate how the repository can be used to solve the T
 2. The time dependent piece of the Hamiltonian can be written as $E(t)*{\bf V}$ for some function of time $E$ and some fixed, symmetric banded matrix ${\bf V}$.
 
 Because ITVOLT applies more broadly to any problem that can be written as a Volterra integral equation, the repository contains additional code to solve two non-physical problems:
- * A simple two channel problem of Wang and Wang [2].
+ * A simple two channel problem of Wang and Wang [1].
  * The following one dimensional ODE (with initial condition $\psi(0) = 1$):
  
  $$ \left[ i \frac{ \partial}{\partial t} - t \right] \psi(t) = 0. $$
@@ -101,14 +101,17 @@ Here we give a brief summary of each module in the Source directory.
 12. **two_channel.f90** - Sets up and solves the two-channel problem of Wang and Wang.
 13. **two_level_atom.f90** - Sets up and solves the TDSE for a two-level atom exposed to a laser. 
 
-Routines for computing Gauss-Lobatto quadrature points and the corresponding set of Lagrange weights as well as a GMRES routine due to Frayssé et al. [1] can be found in the Library directory.
+Routines for computing Gauss-Lobatto quadrature points and the corresponding set of Lagrange weights as well as a GMRES routine due to Frayssé et al. [2] can be found in the Library directory.
 
 ## Contact
 Thanks for taking the time to look through our work! If you have questions or feedback about using this repository, reach out to Ryan Schneider at ryschnei@ucsd.edu.
 
 ## References
 <a id="1">[1]</a> 
-V. Frayssé, L. Giraud, S. Gratton, and J. Langou. *Algorithm 842: A set of GMRES routines for real and complex arithmetics on high performance computers.* ACM Transactions on Mathematical Software  (2005).
+W. Wang and X. Wang. *A generalized block-by-block method for the system of linear Volterra equations of the second kind.* Wuhan University Journal of Natural Sciences (2011). 
+
 
 <a id="2">[2]</a> 
-W. Wang and X. Wang. *A generalized block-by-block method for the system of linear Volterra equations of the second kind.* Wuhan University Journal of Natural Sciences (2011). 
+V. Frayssé, L. Giraud, S. Gratton, and J. Langou. *Algorithm 842: A set of GMRES routines for real and complex arithmetics on high performance computers.* ACM Transactions on Mathematical Software  (2005).
+
+
