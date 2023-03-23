@@ -50,7 +50,7 @@ pulse_type: smooth_pulse
 total_time: 100d0
 
 ! time step size (dt)
-time_step_size: 0.1d0
+time_step_size: 1.0d0
 
 ! propagation method for matrix exponentials (options: diagonalization, chebyshev, lanczos, itvolt)
 prop_method: chebyshev
@@ -59,7 +59,7 @@ prop_method: chebyshev
 exp_it_type: gauss_seidel
 
 ! max number of iterations for lanczos
-lancz_iterations: 25
+lancz_iterations: 30
 
 ! convergence threshold for lanczos
 lancz_threshold: 1.d-12
@@ -74,7 +74,7 @@ chebyshev_terms: 1000
 chebyshev_threshold: 1.d-15 
 
 ! iteration type (options: short_time, jacobi, gauss_seidel, gmres)
-it_type: gauss_seidel
+it_type: jacobi
 
 ! number of quadrature points
 quad_pt: 10
@@ -98,7 +98,7 @@ gmres_max: 50
 example_problem: harmonic_oscillator
 
 ! number of states in harmonic oscillator basis expansion
-states: 200
+states: 400
 
 ! solution method (rk4, it_volt)
 soln_method: it_volt

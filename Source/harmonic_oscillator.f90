@@ -33,14 +33,14 @@ program harmonic_oscillator
        else
           print *, 'Solution method: Iterative Volterra Propagator (ITVOLT)'
           print *, 'Iteration type: ', it_type
+          print *, 'Quadrature type: ', quad_type
+          print *, 'Number of quadrature points:', quad_pt
        end if
+       print *, 'Method for computing exponentials: ', prop_method
     else
        print *, 'Solution method: ', soln_method
     end if
-    print *, 'Method for computing exponentials: ', prop_method
     print *, 'Propagation step size:', dt
-    print *, 'Quadrature type: ', quad_type
-    print *, 'Number of quadrature points:', quad_pt
     print *, 'Number of states:', m
     print *, '************************************'
     
@@ -188,7 +188,9 @@ program harmonic_oscillator
     print *, '************************************'
     print *, 'Number of states with worst-case error below 10^-10:', count(max_prob_error<1.d-10)
     print *, 'Maximum error at any state:', maxval(max_prob_error)
-    print *, 'Average worst-case error in the first 50 states:', sum(max_prob_error(1:50))/50d0
+    if (m > 300) then
+       print *, 'Average worst-case error across states 1-300:', sum(max_prob_error(1:300))/300d0
+    end if
     print *, '************************************'
     print *, 'Maximum norm error:', max_norm_error
     print *, '************************************'
