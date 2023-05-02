@@ -26,6 +26,7 @@ program harmonic_oscillator
     call harmonic_oscillator_read
     m = states
 
+    print *, '*************************************'
     print *, 'Problem: Driven Harmonic Oscillator'
     if (soln_method == 'it_volt') then
        if (it_type == 'short_time') then

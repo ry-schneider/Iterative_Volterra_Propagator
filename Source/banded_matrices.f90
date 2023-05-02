@@ -3,8 +3,9 @@ module banded_matrices
   use parameters, only: potential_type
   implicit none
   private
-  public banded_sym_mat, sb_matvec_mul, sb_eigensolve, sb_eigenvalues
+  public banded_sym_mat, complex_sb_mat, sb_matvec_mul, d_sb_eigensolve, d_sb_eigenvalues
 
+  ! real symmetric banded matrix
   type banded_sym_mat
 
     integer                 :: mat_size
@@ -17,18 +18,49 @@ module banded_matrices
 
   contains
 
-    procedure :: initialize  !(mat_size, band_size, diagonal(mat_size), offdiagonal(mat_size-1))
-    procedure :: make_banded_matrix_on_grid !(x(mat_size),dx,band_size)
+    procedure :: d_initialize !(mat_size, band_size, diagonal(mat_size), offdiagonal(mat_size-1))
+    generic   :: initialize => d_initialize
+    procedure :: d_make_banded_matrix_on_grid !(x(mat_size),dx,band_size)
+    generic   :: make_banded_matrix_on_grid => d_make_banded_matrix_on_grid
 
-  end type
+  end type banded_sym_mat
 
+  ! complex banded symmetric matrix
+  type complex_sb_mat
+     
+    integer                   :: mat_size
+    integer                   :: bsz
+    complex(8), allocatable   :: diagonal(:)
+    complex(8), allocatable   :: offdiagonal(:,:)
+    complex(8), allocatable   :: eigenvalues(:)
+    complex(8), allocatable   :: eigenvectors(:,:)
+    integer, allocatable      :: nonzero_bands(:)
+    integer                   :: nnz
+    logical                   :: init = .false.
+
+  contains
+
+    procedure :: z_initialize !(mat_size, band_size, diagonal(mat_size), offdiagonal(mat_size-1))
+    generic   :: initialize => z_initialize
+    procedure :: z_make_banded_matrix_on_grid !(x(mat_size),dx,band_size)
+    generic   :: make_banded_matrix_on_grid => z_make_banded_matrix_on_grid
+     
+  end type complex_sb_mat
+
+  ! generic call to real/complex matrix vector multiplication routines
+  interface sb_matvec_mul
+     procedure d_sb_matvec_mul
+     procedure z_sb_matvec_mul
+  end interface sb_matvec_mul
+
+  
 contains
 
   
-  subroutine initialize(self, m_size, b_size, diag, offd)
+  subroutine d_initialize(self, m_size, b_size, diag, offd)
     !******************************************************************
     ! Initializes and allocates the components of the
-    ! banded_symmetric_matrix (self).  
+    ! real banded symmetric matrix (self).  
     !  m_size : symmetric matrix size 
     !  b_size : number of bands in matrix
     !  diag   : the diagonal vector of the matrix dimension(m_size)
@@ -59,13 +91,65 @@ contains
 
     self%init = .true.
 
-  end subroutine initialize
-  
+  end subroutine d_initialize
 
-  function sb_matvec_mul(mat, vec) result(ans)
+
+  subroutine z_initialize(self, m_size, b_size, diag, offd)
+    !******************************************************************
+    ! Initializes and allocates the components of the
+    ! complex banded matrix (self).  
+    !  m_size : symmetric matrix size 
+    !  b_size : number of bands in matrix
+    !  diag   : the diagonal vector of the matrix dimension(m_size)
+    !  offd   : the off diagonal matrix has dimensions (m_size, b_size)
+    !*******************************************************************           
+    class(complex_sb_mat)    :: self
+    integer, intent(in)      :: m_size, b_size
+    complex(8), intent(in)   :: diag(:), offd(:,:)
+    integer, allocatable     :: indices(:)
+    integer                  :: i, j, k, n
+
+
+    self%mat_size = m_size
+    self%bsz      = b_size
+    allocate(self%diagonal(m_size))
+    allocate(self%offdiagonal(m_size-1, b_size))
+    allocate(self%eigenvalues(m_size))
+    allocate(self%eigenvectors(m_size, m_size))
+
+    allocate(indices(b_size))
+    n = 0
+    do k = 1,b_size
+       if (count(offd(:,k) /= 0) /= 0) then
+          n = n+1
+          indices(n) = k
+       end if
+    end do
+
+    self%nnz = n
+    allocate(self%nonzero_bands(n))
+    self%nonzero_bands(:) = indices(1:n)
+
+    self%offdiagonal(:,:) = 0
+    do j = 1,n
+      do i = 1,m_size-self%nonzero_bands(j) 
+        self%offdiagonal(i, self%nonzero_bands(j)) = offd(i,self%nonzero_bands(j))
+      end do
+    end do
+
+    do i = 1, m_size
+      self%diagonal(i) = diag(i)
+    end do
+
+    self%init = .true.
+
+  end subroutine z_initialize  
+
+  
+  function d_sb_matvec_mul(mat, vec) result(ans)
     !***************************************************************
     !  Multiplies symmetric_banded matrix into a complex vector 
-    !  mat : matrix of symmetrix_banded_type (NxN)
+    !  mat : real symmetric banded matrix (NxN)
     !  vec : complex vector the matrix is multiplied into (N)
     !  ans : the outcome complex vector of multiplication (N)
     !**************************************************************
@@ -92,39 +176,72 @@ contains
       stop 'type banded_sym_mat is not initilized!'
      end if
 
-  end function sb_matvec_mul
+  end function d_sb_matvec_mul
 
 
-  function sb_matvec_mul_real(mat, vec) result(ans)
+  function z_sb_matvec_mul(mat, vec) result(ans)
     !***************************************************************
-    !  Multiplies symmetric_banded matrix into a real vector 
-    !  mat : matrix of symmetrix_banded_type (NxN)
-    !  vec : real vector the matrix is multiplied into (N)
-    !  ans : the outcome real vector of multiplication (N)
+    !  Multiplies symmetric_banded matrix into a complex vector 
+    !  mat : complex symmetric banded matrix (NxN)
+    !  vec : complex vector the matrix is multiplied into (N)
+    !  ans : the outcome complex vector of multiplication (N)
     !**************************************************************
-    type(banded_sym_mat), intent(in)  :: mat
-    real(8), intent(in)               :: vec(:)
-    real(8)                           :: ans(size(vec))
-    integer :: i, j
-    integer :: b, m_size
+    type(complex_sb_mat), intent(in)  :: mat
+    complex(8), intent(in)            :: vec(:)
+    complex(8)                        :: ans(size(vec))
+    integer                           :: i, j, m
+    complex(8)                        :: z_zero = (0.d0, 0.d0)
     
     if (mat%init) then
+       
+      m = mat%mat_size
 
-      b = mat%bsz
-      m_size = mat%mat_size
+      ans(1:m) = mat%diagonal(1:m)*vec(1:m)
 
-      ans(1:m_size) = mat%diagonal(1:m_size) * vec(1:m_size)
-
-      do i = 1,b
-        ans(1:m_size) = ans(1:m_size) + [mat%offdiagonal(1:m_size-i,i) * vec(i+1:m_size),(0.d0, j=1,i)]
-        ans(1:m_size) = ans(1:m_size) + [(0.d0, j=1,i), mat%offdiagonal(1:m_size-i,i) * vec(1:m_size-i)]
+      do i = 1,mat%nnz
+         ans(1:m) = ans(1:m) + [mat%offdiagonal(1:m-mat%nonzero_bands(i),mat%nonzero_bands(i))*&
+              vec(mat%nonzero_bands(i)+1:m),(z_zero, j=1,mat%nonzero_bands(i))]
+         ans(1:m) = ans(1:m) + [(z_zero, j=1,mat%nonzero_bands(i)), mat%offdiagonal(1:m-mat%nonzero_bands(i),mat%nonzero_bands(i))*&
+              vec(1:m-mat%nonzero_bands(i))]
       end do
 
      else
-      stop 'type banded_sym_mat is not initilized!'
+      stop 'type complex_sb_mat is not initilized!'
      end if
 
-  end function sb_matvec_mul_real 
+  end function z_sb_matvec_mul
+
+
+  !function sb_matvec_mul_real(mat, vec) result(ans)
+  !  !***************************************************************
+  !  !  Multiplies symmetric_banded matrix into a real vector 
+  !  !  mat : matrix of symmetrix_banded_type (NxN)
+  !  !  vec : real vector the matrix is multiplied into (N)
+  !  !  ans : the outcome real vector of multiplication (N)
+  !  !**************************************************************
+  !  type(banded_sym_mat), intent(in)  :: mat
+  !  real(8), intent(in)               :: vec(:)
+  !  real(8)                           :: ans(size(vec))
+  !  integer :: i, j
+  !  integer :: b, m_size
+    
+  !  if (mat%init) then
+
+  !    b = mat%bsz
+  !    m_size = mat%mat_size
+
+  !    ans(1:m_size) = mat%diagonal(1:m_size) * vec(1:m_size)
+
+  !    do i = 1,b
+  !      ans(1:m_size) = ans(1:m_size) + [mat%offdiagonal(1:m_size-i,i) * vec(i+1:m_size),(0.d0, j=1,i)]
+  !      ans(1:m_size) = ans(1:m_size) + [(0.d0, j=1,i), mat%offdiagonal(1:m_size-i,i) * vec(1:m_size-i)]
+  !    end do
+
+  !   else
+  !    stop 'type banded_sym_mat is not initilized!'
+  !   end if
+
+  !end function sb_matvec_mul_real 
 
 
   ! multiplies two banded symmetric matrices (mat1*mat2)
@@ -200,10 +317,10 @@ contains
   !end function sb_matmul
 
 
-  subroutine make_banded_matrix_on_grid(self, x_grid, dx, bandnum)
+  subroutine d_make_banded_matrix_on_grid(self, x_grid, dx, bandnum)
     !***********************************************************************************************   
     ! Constructs the matrix of the Hamiltonian d^2/dx^2 + potential on
-    ! as a baned_symmetric_matrix (self)
+    ! as a real banded symmetric matrix (self)
     !   xgrid      : on input, the already filled grid points vector
     !   dx         : the size of the uniform grid increments
     !   bandnum    : determines the size of finite-difference scheme to be used
@@ -258,17 +375,82 @@ contains
 
     case default
 
-      stop 'only band matrices between 1 and 4 are coded'
+      stop 'only matcies with 1-4 bands are coded'
 
     end select
 
     call self%initialize(ndim, bandnum, diag, offdiag)
 
-  end subroutine make_banded_matrix_on_grid
+  end subroutine d_make_banded_matrix_on_grid
 
 
-  ! computes a  full set of eigenvalues and eigenvectors
-  subroutine sb_eigensolve(mat)
+  subroutine z_make_banded_matrix_on_grid(self, x_grid, dx, bandnum)
+    !***********************************************************************************************   
+    ! Constructs the matrix of the Hamiltonian d^2/dx^2 + potential on
+    ! as a complex banded symmetric matrix (self)
+    !   xgrid      : on input, the already filled grid points vector
+    !   dx         : the size of the uniform grid increments
+    !   bandnum    : determines the size of finite-difference scheme to be used
+    !                (i.e. the size of the bands in matrix)
+    !***********************************************************************************************
+    class(complex_sb_mat)     :: self
+    real(8), intent(in)       :: x_grid(:)
+    real(8)                   :: dx
+    integer                   :: bandnum
+    integer                   :: ndim
+    complex(8), allocatable   :: diag(:), offdiag(:,:)
+    procedure(potential_func), pointer :: pot
+
+
+    pot => select_potential_type(potential_type)
+
+    ndim = size(x_grid)
+
+    allocate(diag(ndim), offdiag(ndim-1,bandnum))
+
+    select case (bandnum)
+
+    case(1)
+
+      diag(:) = (1.d0 / dx**2) - ii*pot(x_grid(:))
+      offdiag(1:ndim-1,1) = -0.5d0/dx**2
+
+
+    case(2)
+
+      diag(:) = (2.5d0 /2.d0 /dx**2) - ii*pot(x_grid(:))
+      offdiag(1:ndim-1,1) = -2d0/3.d0/dx**2
+      offdiag(1:ndim-2,2) = 1d0/24.d0/dx**2
+
+    case(3)
+
+      diag(:) = (49.d0 / 36.d0/dx**2) - ii*pot(x_grid(:))
+      offdiag(1:ndim-1,1) = -1.5d0/2.d0/dx**2
+      offdiag(1:ndim-2,2) = 3.d0/40.d0/dx**2
+      offdiag(1:ndim-3,3) = -1.d0/180.d0/dx**2
+
+    case(4)
+
+      diag(:) = (205.d0 / 144.d0/dx**2) - ii*pot(x_grid(:))
+      offdiag(1:ndim-1,1) = -4.d0/5.d0/dx**2
+      offdiag(1:ndim-2,2) = 1.d0/10.d0/dx**2
+      offdiag(1:ndim-3,3) = -4.d0/315.d0/dx**2
+      offdiag(1:ndim-4,4) = 1.d0/1120.d0/dx**2
+
+
+    case default
+
+      stop 'only matrices with 1-4 bands are coded'
+
+    end select
+
+    call self%initialize(ndim, bandnum, diag, offdiag)
+
+  end subroutine z_make_banded_matrix_on_grid
+
+
+  ! computes a  full set of eigenvalues and eigenvectors for real symmetric banded matrices
+  subroutine d_sb_eigensolve(mat)
     type(banded_sym_mat)            :: mat 
     real(8)                         :: diagonal(mat%mat_size)
     real(8)                         :: off_diagonal(mat%mat_size - 1)
@@ -308,11 +490,11 @@ contains
        stop
     end if
     
-  end subroutine sb_eigensolve
+  end subroutine d_sb_eigensolve
 
   
-  ! computes only a full set of eigenvalues
-  subroutine sb_eigenvalues(mat)
+  ! computes only a full set of eigenvalues for real symmetric banded matrices
+  subroutine d_sb_eigenvalues(mat)
     type(banded_sym_mat)               :: mat
     real(8)                            :: diagonal(mat%mat_size)
     real(8)                            :: off_diagonal(mat%mat_size - 1)
@@ -353,6 +535,7 @@ contains
        stop
     end if
     
-  end subroutine sb_eigenvalues
+  end subroutine d_sb_eigenvalues
+
 
 end module banded_matrices

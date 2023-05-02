@@ -13,6 +13,9 @@ add_library(library STATIC
             Lagrange_weights.f90
             Lagrange.f90
             precin.f90
-            timing.f90)
+            timing.f90
+	    YLM.f90
+	    clebsch_gordan.f90
+	    coul.f90)
 
 set_target_properties(library PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})

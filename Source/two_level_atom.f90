@@ -35,6 +35,7 @@ program two_level_atom
     call two_level_atom_read
     n = quad_pt
 
+    print *, '*************************************'
     print *, 'Problem: Driven Two-Level Atom'
     print *, 'Iteration type: ', it_type
     print *, 'Pulse amplitude:', E_0

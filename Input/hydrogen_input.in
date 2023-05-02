@@ -1,0 +1,98 @@
+!*********************EXPANSION PARAMETERS*******************************
+
+! max radial coordinate
+box_size: 1500
+
+! number of steps in spatial box
+spatial_step_size: 0.01d0
+
+! grid type (options: half_grid, full_symmetric_grid)
+grid_type: half_grid
+
+! number of bands in finite difference approximation (1 is tridiagonal)
+band_num_sym_mat: 1
+
+! number of angular momentum terms (i.e. maximum value of l is l_max-1)
+l_max: 26
+
+! number of continuum Coulomb functions to project radial wave onto
+coul_num: 10
+
+!****************POTENTIAL AND PULSE PARAMETERS****************************
+
+! driving field type
+pulse_type: linearly_polarized
+
+! linearly polarized pulse parameters
+dressing_amplitude: 0.05338d0
+
+probing_amplitude: 0d0
+
+dressing_frequency: 0.11390d0
+
+probing_frequency: 0d0
+
+dressing_phase: 3.14159265d0
+
+probing_phase: 0d0
+
+dressing_peak: 110.328d0 ! 4*pi/dressing_frequency
+
+probing_peak: 0d0
+
+! complex absorber type (options: zero_potential, gobbler, quad_absorb, log_absorb, quart_absorb)
+absorber_type: quart_absorb
+
+! absorber cutoff (must be less than maximum radial coordinate)
+radial_cutoff: 1450d0
+
+! absorber amplitude
+absorber_amp: 5d0
+
+
+!********************PROPAGATION PARAMETERS******************************
+
+! final propagation time
+total_time: 220.656d0
+
+! time step size (dt)
+time_step_size: 0.01d0
+
+! propagation method for matrix exponentials
+prop_method: arnoldi
+
+! max number of iterations for arnoldi 
+arnoldi_iterations: 30
+
+! convergence threshold for arnoldi
+arnoldi_threshold: 1.d-12
+
+! number of vectors to reorthogonalize against at each arnoldi step (at most arnoldi_iterations)
+arnoldi_reortho: 5
+
+! iteration type (options: short_time, jacobi, gauss_seidel, gmres)
+it_type: gauss_seidel
+
+! number of quadrature points
+quad_pt: 5
+
+! type of quadrature (newton_cotes or gauss)
+quad_type: gauss
+
+! convergence criteria for iteration
+it_tolerance: 1.d-10
+
+! cap on number of iterations
+it_cap: 50
+
+! GMRES convergence criteria
+gmres_tol: 1.d-13
+
+! maximum number of GMRES iterations before restarting
+gmres_max: 50
+
+! example problem (used in data file name)
+example_problem: 3d_hydrogen
+
+! solution method (rk4, it_volt)
+soln_method: it_volt

@@ -8,7 +8,7 @@
 !! with the same parameters being pulled from the parameters module.
 !!
 module pulse_module
-  use parameters, only: E_0, omega, phase, pi, t_intv, t_on
+  use parameters, only: E_0, omega, phase, pi, t_intv, t_on, E_d, omega_d, phase_d, peak_d, E_p, omega_p, phase_p, peak_p
   implicit none
 
   real(8) :: envelope_time
@@ -35,7 +35,9 @@ contains
       case("square_pulse")
         f_ptr => square_length
       case("smooth_pulse")
-        f_ptr => smooth_length
+         f_ptr => smooth_length
+      case("linearly_polarized")
+         f_ptr => linearly_polarized
     end select
 
     ! if we didn't find a function we liked in the switch, then undefined behavior
@@ -65,5 +67,16 @@ contains
      sin(pi * t / envelope_time)
 
   end function smooth_length
+
+  function linearly_polarized(t) result(E_t)
+    real(8) :: E_t, t
+
+    ! linearly polarized pulse of Douguet et al. (with sin^2 envelope)
+    E_t = E_d*sin(omega_d*(t-peak_d)+phase_d)*sin(pi*t/(2d0*peak_d))**2
+
+    ! E_t = E_d*exp(-(t-peak_d)**2/(t_intv**2))*sin(omega_d*t+phase_d) + &
+    !     E_p*exp(-(t-peak_p)**2/(t_intv**2))*sin(omega_p*t+phase_p)
+    
+  end function linearly_polarized
 
 end module pulse_module

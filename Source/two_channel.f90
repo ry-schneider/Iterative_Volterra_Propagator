@@ -20,6 +20,7 @@ program two_channel
     call two_channel_read
     n = quad_pt
 
+    print *, '*************************************'
     print *, 'Problem: Two-channel'
     print *, 'Iteration type: ', it_type
     print *, 'Quadrature type: ', quad_type

@@ -1,5 +1,5 @@
 module propagator
-use parameters !, only : idt, ii, dt, t_intv, datafilename, z_one, z_zero, lancz_itnum, lanc_threshold, chebyshev_terms, chebyshev_threshold
+use parameters 
 use banded_matrices
 use pulse_module
 use timing
@@ -8,7 +8,7 @@ use Lagrange_weights
 use grid, only: x
 implicit none
 private
-public  propagator_func, initialize_variables, select_propagator_type, itvolt_exp, diag_prop, cheby_prop, lanczos_prop
+public  propagator_func, initialize_variables, select_propagator_type, itvolt_exp, diag_prop, cheby_prop, lanczos_prop, arnoldi_prop
 
   interface 
      function propagator_func(mat, local_dt, psi) result(ans)
@@ -39,11 +39,11 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
     select case (trim(propagator_name))
       
       case('diagonalization')
-         init_ptr => sb_eigensolve
+         init_ptr => d_sb_eigensolve
          f_ptr => diag_prop
 
       case('chebyshev')
-         init_ptr => sb_eigenvalues
+         init_ptr => d_sb_eigenvalues
          f_ptr => cheby_prop
 
       case('lanczos')
@@ -57,7 +57,7 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
       case('two_level')
          init_ptr => init_two_level
          f_ptr => two_level_prop
-     
+
       case default 
         print *, propagator_name
         stop 'above method is not programmed'
@@ -407,11 +407,124 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
           phi(:) = ans(:)
        end do
 
-       ans(:) = phi(:)
-
     end if
 
   end function lanczos_prop
+
+
+  ! applies a (complex) matrix exponential to a vector via Arnoldi
+  function arnoldi_prop(mat, local_dt, psi) result(ans)
+    type(complex_sb_mat), intent(in)        :: mat
+    real(8), intent(in)                     :: local_dt
+    complex(8), intent(in)                  :: psi(:)
+    complex(8)                              :: ans(size(psi))
+    complex(8)                              :: Q(size(psi), arnoldi_itnum)
+    complex(8)                              :: w(size(psi)), phi(size(psi))
+    complex(8)                              :: H(arnoldi_itnum, arnoldi_itnum), A(arnoldi_itnum, arnoldi_itnum)
+    complex(8)                              :: eigenvalues(arnoldi_itnum), eigenvectors(arnoldi_itnum, arnoldi_itnum)
+    complex(8)                              :: eig_copy(arnoldi_itnum)
+    complex(8)                              :: b(arnoldi_itnum)
+    complex(8)                              :: VL(1,arnoldi_itnum), work(11*arnoldi_itnum), Z(1,arnoldi_itnum)
+    complex(8)                              :: work2(arnoldi_itnum*arnoldi_itnum)
+    real(8)                                 :: rwork(2*arnoldi_itnum)
+    real(8)                                 :: error
+    integer                                 :: k, m, i, j, l, info, ifaill, ifailr
+    integer                                 :: IPIV(arnoldi_itnum)
+    logical                                 :: converged
+    logical                                 :: select_array(arnoldi_itnum)
+
+    ! if starting vector is zero, skip iteration and output zero
+    if (sqrt(dot_product(psi,psi)) == 0.d0) then
+       ans(:) = 0
+
+    else
+       ! initialize hessenberg matrix as zero
+       H(:,:) = 0
+       
+       ! first vector is normalized psi
+       Q(:,1) = psi(:)/sqrt(dot_product(psi,psi))
+
+       ! compute second arnoldi vector
+       w(:) = sb_matvec_mul(mat,Q(:,1))
+       H(1,1) = dot_product(Q(:,1),w)
+       w(:) = w(:) - H(1,1)*Q(:,1)
+
+       H(2,1) = sqrt(dot_product(w,w))
+       Q(:,2) = w(:)/H(2,1)
+
+       ! re-orthogonalize against first to ensure convergence
+       call zschmab(Q(:,1), Q(:,2), 1.d-10, size(psi), 1, 1, m)
+
+       ! project on first arnoldi vector (i.e., evaluate the exponential with only Q(:,1))
+       phi(:) = exp(-ii*local_dt*H(1,1))*dot_product(Q(:,1),psi)*Q(:,1)
+
+       ! start iteration, adding an extra vector until convergence is reached
+       select_array(1) = .TRUE.
+       select_array(2) = .TRUE.
+       k = 2
+       converged = .FALSE.
+       do while ( .not. (converged .or. k > arnoldi_itnum))
+          w(:) = sb_matvec_mul(mat, Q(:,k))
+          do i=1,k
+             H(i,k) = dot_product(Q(:,i),w)
+             w(:) = w(:) - H(i,k)*Q(:,i)
+          end do
+
+          ! find eigenvalues/eigenvectors of hessenberg matrix H(1:k,1:k)
+          A(1:k,1:k) = H(1:k,1:k)
+          ! call zgeev('N', 'V', k, A(1:k,1:k), k, eigenvalues(1:k), VL, 1, eigenvectors(1:k,1:k), k, work, &
+          !     10*arnoldi_itnum,  rwork(1:2*k), info)
+
+          ! call Hessenberg routine for eigenvalues
+          call zhseqr('E', 'N', k, 1, k, A(1:k,1:k), k, eigenvalues(1:k), Z, 1, work, 11*arnoldi_itnum, info)
+          if (info /= 0) then
+             print *, 'eigenvalue solve in arnoldi failed at step', k-1
+             stop
+          end if
+
+          ! use inverse iteration to find corresponding eigenvectors
+          A(1:k,1:k) = H(1:k,1:k)
+          eig_copy(1:k) = eigenvalues(1:k)
+          call zhsein('R', 'Q', 'N', select_array(1:k), k, A(1:k,1:k), k, eig_copy(1:k), VL(1,1:k), 1, &
+               eigenvectors(1:k,1:k), k, k, m, work2(1:k*k), rwork(1:k), ifaill, ifailr, info)
+          if (info /= 0) then
+             print *, 'eiegenvector solve in arnoldi iteration failed at step', k-1
+             stop
+          end if
+
+          ! use diagonalization to apply the exponential to psi (note eigenvectors are not orthonormal)
+          b(1:k) = matmul(transpose(conjg(Q(:,1:k))),psi)
+          A(1:k,1:k) = eigenvectors(1:k,1:k)
+          call zgesv(k, 1, A(1:k,1:k), k, IPIV(1:k), b(1:k), k, info)
+          do j = 1,k
+             b(j) = exp(-ii*local_dt*eigenvalues(j))*b(j)
+          end do
+          ans(:) = matmul(Q(:,1:k), matmul(eigenvectors(1:k,1:k), b(1:k)))
+
+          ! check for convergence
+          error = sqrt(dot_product(phi-ans, phi-ans))
+          if (error < arnoldi_threshold) then
+             converged = .TRUE.
+
+          else if (k /= arnoldi_itnum) then
+             ! add next vector and reorthogonalize
+             H(k+1,k) = sqrt(dot_product(w,w))
+             Q(:,k+1) = w(:)/H(k+1,k)
+
+             l = min(k, arnoldi_reortho)
+             call zschmab(Q(:,k-l+1:k), Q(:,k+1), 1.d-10, size(psi), l, 1, m)
+             
+          end if
+
+          k = k+1
+          select_array(k) = .TRUE.
+          phi(:) = ans(:)
+          
+       end do
+       
+    end if
+    
+  end function arnoldi_prop
 
   
   ! propagator for the two level atom

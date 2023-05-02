@@ -22,9 +22,9 @@ module parameters
   !> spatial variables
   !>***********************************************************************
   !> size of spatial box
-  real(8)              :: l
+  real(8)              :: r_max
   !> size of steps in spatial box
-  real(8)              :: h
+  real(8)              :: dr
 
   !>**********************************************************************
   !> matrix variables
@@ -51,6 +51,16 @@ module parameters
   integer              :: chebyshev_terms
   !> threshold for truncating chebyshev expansion
   real(8)              :: chebyshev_threshold
+
+  !***********************************************************************
+  !arnoldi variables
+  !***********************************************************************
+  !> number of arnoldi iterations
+  integer              :: arnoldi_itnum
+  !> arnoldi convergence threshold
+  real(8)              :: arnoldi_threshold
+  !> number of vectors to reorthogonalize against
+  integer              :: arnoldi_reortho
   
   !***********************************************************************
   !symetric banded matrices variable
@@ -71,6 +81,23 @@ module parameters
   character(:), allocatable  :: pulse_name
   character(:), allocatable  :: potential_type
   character(:), allocatable  :: grid_type
+  !> linearly polarized pulse variables (assume both have durations t_intv)
+  real(8)       :: E_d ! dressing field amplitude
+  real(8)       :: E_p ! probe field amplitude
+  real(8)       :: omega_d ! dressing field frequency
+  real(8)       :: omega_p ! probe field frequency
+  real(8)       :: phase_d ! dressing field phase
+  real(8)       :: phase_p ! probe field phase
+  real(8)       :: peak_d ! time of dressing field peak
+  real(8)       :: peak_p ! time of probing field peak
+
+  !**********************************************************************
+  ! complex absorber variables
+  !**********************************************************************
+  !> radial cut off value
+  real(8)                     :: r_0
+  !> absorber amplitude
+  real(8)                     :: G_0
 
   !**********************************************************************
   ! propagation variables
@@ -111,6 +138,10 @@ module parameters
   character(:), allocatable  :: soln_method
   !> add/subtract midpoint in model ode?
   integer                    :: add
+  !> number of angular momentum terms in hydrogen expansion
+  integer                    :: l_max
+  !> number of Coulomb functions to project on
+  integer                    :: coul_num
 
   !**********************************************************************
   ! other complex variables and parameters

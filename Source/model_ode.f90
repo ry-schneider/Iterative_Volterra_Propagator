@@ -23,6 +23,7 @@ program model_ode
     call model_ode_read
     n = quad_pt
 
+    print *, '*************************************'
     print *, 'Problem: Model ODE'
     print *, 'Solution method: ', soln_method
     if (soln_method == 'volterra_iteration') then

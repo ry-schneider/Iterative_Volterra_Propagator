@@ -3,12 +3,12 @@ module parameter_read
   use fconfig
   implicit none
   private
-  public harmonic_oscillator_read, two_level_atom_read, two_channel_read, model_ode_read, exp_test_read
+  public harmonic_oscillator_read, two_level_atom_read, two_channel_read, model_ode_read, hydrogen_read
 
 contains
-  
 
-  subroutine exp_test_read
+
+  subroutine hydrogen_read
     type(config)        :: conf
     character(len=255)  :: conf_file_name
     integer             :: ierr
@@ -16,32 +16,66 @@ contains
     call GET_COMMAND_ARGUMENT(1, conf_file_name, status=ierr)
 
     if (ierr .gt. 0) then
-       conf_file_name = '../../Input/exp_test_input.in'
+           conf_file_name = '../../Input/hydrogen_input.in'
     end if
 
     call conf%read_file(conf_file_name)
 
+    ! read expansion parameters
+    call conf%value_from_key('box_size', r_max)
+    call conf%value_from_key('spatial_step_size', dr)
+    call conf%value_from_key('grid_type', grid_type)
+    call conf%value_from_key('l_max', l_max)
+    call conf%value_from_key('coul_num', coul_num)
+
+    ! read propagation parameters
+    call conf%value_from_key('total_time', t_intv)
     call conf%value_from_key('time_step_size', dt)
-    call conf%value_from_key('exp_it_type', exp_it_type)
+    t_tot = int(t_intv/dt)
+
+    ! read pulse parameters
+    call conf%value_from_key('pulse_type', pulse_name)
+    call conf%value_from_key('dressing_amplitude', E_d)
+    call conf%value_from_key('probing_amplitude', E_p)
+    call conf%value_from_key('dressing_frequency', omega_d)
+    call conf%value_from_key('probing_frequency', omega_p)
+    call conf%value_from_key('dressing_phase', phase_d)
+    call conf%value_from_key('probing_phase', phase_p)
+    call conf%value_from_key('dressing_peak', peak_d)
+    call conf%value_from_key('probing_peak', peak_p)
+
+    ! read absorber parameters
+    call conf%value_from_key('absorber_type', potential_type)
+    call conf%value_from_key('radial_cutoff', r_0)
+    call conf%value_from_key('absorber_amp', G_0)
+
+    ! read Arnoldi parameters
+    call conf%value_from_key('arnoldi_iterations', arnoldi_itnum)
+    call conf%value_from_key('arnoldi_threshold', arnoldi_threshold)
+    call conf%value_from_key('arnoldi_reortho', arnoldi_reortho)
+    
+    ! read banded matrix parameters
+    call conf%value_from_key('band_num_sym_mat', band_num_sym_mat)
+
+    ! read GMRES parameters
+    call conf%value_from_key('gmres_tol', gmres_tol)
+    call conf%value_from_key('gmres_max', gmres_max)
+
+    ! read quadrature/iterative parameters
+    call conf%value_from_key('prop_method', prop_method)
+    call conf%value_from_key('it_type', it_type)
     call conf%value_from_key('quad_pt', quad_pt)
     call conf%value_from_key('quad_type', quad_type)
     call conf%value_from_key('it_tolerance', it_tolerance)
-    call conf%value_from_key('lancz_iterations', lancz_itnum)
-    call conf%value_from_key('lancz_threshold', lanc_threshold)
-    call conf%value_from_key('lancz_reortho', lancz_reortho)
-    call conf%value_from_key('chebyshev_terms', chebyshev_terms)
-    call conf%value_from_key('chebyshev_threshold', chebyshev_threshold)
-    call conf%value_from_key('example_problem', example_problem)
-    call conf%value_from_key('states', states)
-    call conf%value_from_key('samples', samples)
     call conf%value_from_key('it_cap', it_cap)
 
-    print *, '************************************'
-    print *, 'Beginning computations!'
-    print *, '************************************'
-    
-  end subroutine exp_test_read
+    ! read harmonic oscillator parameters
+    call conf%value_from_key('example_problem', example_problem)
+    call conf%value_from_key('soln_method', soln_method)
 
+    call make_datafile_name
+
+  end subroutine hydrogen_read
 
   
   subroutine harmonic_oscillator_read
@@ -50,7 +84,6 @@ contains
     integer             :: ierr
 
     call GET_COMMAND_ARGUMENT(1, conf_file_name, status=ierr)
-    
 
     if (ierr .gt. 0) then
            conf_file_name = '../../Input/harmonic_oscillator_input.in'
@@ -58,10 +91,9 @@ contains
 
     call conf%read_file(conf_file_name)
 
-
     ! read spatial parameters
-    call conf%value_from_key("box_size", l)
-    call conf%value_from_key("spatial_step_size", h)
+    call conf%value_from_key("box_size", r_max)
+    call conf%value_from_key("spatial_step_size", dr)
     call conf%value_from_key('grid_type', grid_type)
 
     ! read potential parameters
@@ -122,10 +154,6 @@ contains
     call conf%value_from_key('soln_method', soln_method)
 
     call make_datafile_name
-
-    print *, '************************************'
-    print *, 'Beginning computations!'
-    print *, '************************************'
     
   end subroutine harmonic_oscillator_read
 
@@ -170,10 +198,6 @@ contains
 
     call make_datafile_name
 
-    print *, '************************************'
-    print *, 'Beginning computations!'
-    print *, '************************************'
-    
   end subroutine two_level_atom_read
 
 
@@ -207,10 +231,6 @@ contains
 
     call make_datafile_name
 
-    print *, '************************************'
-    print *, 'Beginning computations!'
-    print *, '************************************'
-    
   end subroutine two_channel_read
 
 
@@ -245,13 +265,8 @@ contains
     call conf%value_from_key('add', add)
 
     call make_datafile_name
-
-    print *, '************************************'
-    print *, 'Beginning computations!'
-    print *, '************************************'
     
   end subroutine model_ode_read
-
 
   
   !--------------------------------------------------------------------
