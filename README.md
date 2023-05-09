@@ -3,11 +3,11 @@ In atomic units, the time-dependent Schrödinger equation (TDSE) takes the form
 
 $$ i \frac{\partial}{\partial t} \psi (t) = {\bf H}(t) \psi(t) $$
 
-for a Hamiltonian ${\bf H}$ and a corresponding wave function $\psi$. ITVOLT (short for Iterative Volterra Propagator) is a novel method for solving the TDSE that propagates a solution on intervals $[\tau_j, \tau_{j+1}]$ by solving the equivalent Volterra integral equation
+for a Hamiltonian ${\bf H}$ and a corresponding wave function $\psi$. ITVOLT (short for Iterative Volterra Propagator) is a novel method for solving the TDSE that propagates a solution on intervals $[\tau\_j, \tau\_{j+1}]$ by solving the equivalent Volterra integral equation
 
-$$ \psi(t) = e^{-i {\bf H}_j(t - \tau_j)} \psi(\tau_j) - i \int_{\tau_j}^t e^{-i {\bf H}_j(t-t')} {\bf V}_j(t') \psi(t')dt', $$ 
+$$ \psi(t) =  e^{-i {\bf H}\_j(t - \tau\_j)} \psi(\tau\_j) - i \int_{\tau\_j}^t e^{-i {\bf H}\_j(t - t')} {\bf V}\_j(t') \psi(t') d t', $$
 
-where ${\bf H}_j = {\bf H}_0 + {\bf W}(\tau_j + \frac{\Delta \tau}{2})$ and ${\bf V}_j(t) = {\bf W}(t) - {\bf W}\left( \tau_j + \frac{\Delta \tau}{2} \right)$ for ${\bf H}_0$ and ${\bf W}(t)$ the time-independent and time-dependent parts of ${\bf H}$ respectively and $\Delta \tau$ the size of the interval. ITVOLT proceeds by applying a Lagrange interpolation to the integrand, reducing the Volterra integral equation to a linear system that is then solved iteratively. The numerical details of the method are presented in a [forthcoming paper.](https://arxiv.org/abs/2210.15677)
+where ${\bf H}\_j = {\bf H}\_0 + {\bf W}(\tau\_j + \frac{\Delta \tau}{2})$ and ${\bf V}\_j(t) = {\bf W}(t) - {\bf W}\left( \tau\_j + \frac{\Delta \tau}{2} \right)$ for ${\bf H}\_0$ and ${\bf W}(t)$ the time-independent and time-dependent parts of ${\bf H}$ respectively and $\Delta \tau$ the size of the interval. ITVOLT proceeds by applying a Lagrange interpolation to the integrand, reducing the Volterra integral equation to a linear system that is then solved iteratively. The numerical details of the method are presented in a [forthcoming paper.](https://arxiv.org/abs/2210.15677)
 
 This repository contains Fortran 90 code that applies ITVOLT to the TDSE for the following quantum systems:
  * A two level atom exposed to a laser.
