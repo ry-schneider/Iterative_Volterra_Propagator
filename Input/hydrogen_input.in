@@ -1,7 +1,7 @@
 !*********************EXPANSION PARAMETERS*******************************
 
 ! max radial coordinate
-box_size: 1500
+box_size: 1500d0
 
 ! number of steps in spatial box
 spatial_step_size: 0.01d0
@@ -16,7 +16,7 @@ band_num_sym_mat: 1
 l_max: 26
 
 ! number of continuum Coulomb functions to project radial wave onto
-coul_num: 10
+coul_num: 400
 
 !****************POTENTIAL AND PULSE PARAMETERS****************************
 
@@ -56,22 +56,28 @@ absorber_amp: 5d0
 total_time: 220.656d0
 
 ! time step size (dt)
-time_step_size: 0.01d0
+time_step_size: 0.001d0
 
 ! propagation method for matrix exponentials
 prop_method: arnoldi
 
 ! max number of iterations for arnoldi 
-arnoldi_iterations: 30
+arnoldi_iterations: 200
 
 ! convergence threshold for arnoldi
-arnoldi_threshold: 1.d-12
+arnoldi_threshold: 1.d-10
 
 ! number of vectors to reorthogonalize against at each arnoldi step (at most arnoldi_iterations)
-arnoldi_reortho: 5
+arnoldi_reortho: 50
 
-! iteration type (options: short_time, jacobi, gauss_seidel, gmres)
-it_type: gauss_seidel
+! max number of GMRES iterations for crank-nicolson
+cn_gmres_max: 300
+
+! GMRES tolerance for crank-nicolson
+cn_gmres_tol: 1.d-2
+
+! iteration type (options: short_time, jacobi, gmres) **no gauss_seidel for now**
+it_type: short_time
 
 ! number of quadrature points
 quad_pt: 5

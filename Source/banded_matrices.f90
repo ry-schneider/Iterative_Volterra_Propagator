@@ -1,13 +1,12 @@
 module banded_matrices
   use potential
-  use parameters, only: potential_type
+  use parameters
   implicit none
   private
   public banded_sym_mat, complex_sb_mat, sb_matvec_mul, d_sb_eigensolve, d_sb_eigenvalues
 
   ! real symmetric banded matrix
   type banded_sym_mat
-
     integer                 :: mat_size
     integer                 :: bsz
     real(8), allocatable    :: diagonal(:)
@@ -27,22 +26,19 @@ module banded_matrices
 
   ! complex banded symmetric matrix
   type complex_sb_mat
-     
-    integer                   :: mat_size
-    integer                   :: bsz
-    complex(8), allocatable   :: diagonal(:)
-    complex(8), allocatable   :: offdiagonal(:,:)
+    integer                   :: mat_size ! matrix size
+    integer                   :: bsz ! number of nonzero bands
+    complex(8), allocatable   :: diagonal(:) ! main diagonal
+    complex(8), allocatable   :: offdiagonal(:,:) ! nonzero off-diagonal bands
     complex(8), allocatable   :: eigenvalues(:)
     complex(8), allocatable   :: eigenvectors(:,:)
-    integer, allocatable      :: nonzero_bands(:)
-    integer                   :: nnz
     logical                   :: init = .false.
 
   contains
 
-    procedure :: z_initialize !(mat_size, band_size, diagonal(mat_size), offdiagonal(mat_size-1))
+    procedure :: z_initialize !(mat_size, band_size, diagonal(mat_size), offdiagonal(mat_size-1,band_size))
     generic   :: initialize => z_initialize
-    procedure :: z_make_banded_matrix_on_grid !(x(mat_size),dx,band_size)
+    procedure :: z_make_banded_matrix_on_grid !(x(mat_size), dx, band_size)
     generic   :: make_banded_matrix_on_grid => z_make_banded_matrix_on_grid
      
   end type complex_sb_mat
@@ -71,7 +67,6 @@ contains
     real(8), intent(in)   :: diag(:), offd(:,:)
     integer               :: i, j
 
-
     self%mat_size = m_size
     self%bsz      = b_size
     allocate(self%diagonal(m_size))
@@ -96,49 +91,30 @@ contains
 
   subroutine z_initialize(self, m_size, b_size, diag, offd)
     !******************************************************************
-    ! Initializes and allocates the components of the
-    ! complex banded matrix (self).  
-    !  m_size : symmetric matrix size 
-    !  b_size : number of bands in matrix
-    !  diag   : the diagonal vector of the matrix dimension(m_size)
-    !  offd   : the off diagonal matrix has dimensions (m_size, b_size)
+    ! Initializes and allocates the components of the complex banded matrix (self).  
+    !  m_size  : symmetric matrix size 
+    !  b_size  : number of nonzero bands in matrix
+    !  diag    : the diagonal vector of the matrix (m_size)
+    !  offd    : the nonzero off diagonal bands (m_size-1, b_size) 
     !*******************************************************************           
     class(complex_sb_mat)    :: self
     integer, intent(in)      :: m_size, b_size
     complex(8), intent(in)   :: diag(:), offd(:,:)
-    integer, allocatable     :: indices(:)
-    integer                  :: i, j, k, n
-
-
+    integer                  :: i, j
+    
     self%mat_size = m_size
     self%bsz      = b_size
     allocate(self%diagonal(m_size))
     allocate(self%offdiagonal(m_size-1, b_size))
     allocate(self%eigenvalues(m_size))
-    allocate(self%eigenvectors(m_size, m_size))
+    ! allocate(self%eigenvectors(m_size, m_size))
 
-    allocate(indices(b_size))
-    n = 0
-    do k = 1,b_size
-       if (count(offd(:,k) /= 0) /= 0) then
-          n = n+1
-          indices(n) = k
-       end if
-    end do
-
-    self%nnz = n
-    allocate(self%nonzero_bands(n))
-    self%nonzero_bands(:) = indices(1:n)
-
+    self%diagonal(:) = diag(:)
     self%offdiagonal(:,:) = 0
-    do j = 1,n
-      do i = 1,m_size-self%nonzero_bands(j) 
-        self%offdiagonal(i, self%nonzero_bands(j)) = offd(i,self%nonzero_bands(j))
-      end do
-    end do
-
-    do i = 1, m_size
-      self%diagonal(i) = diag(i)
+    do j = 1,b_size
+       do i = 1,m_size-j
+         self%offdiagonal(i,j) = offd(i,j)
+       end do
     end do
 
     self%init = .true.
@@ -185,6 +161,7 @@ contains
     !  mat : complex symmetric banded matrix (NxN)
     !  vec : complex vector the matrix is multiplied into (N)
     !  ans : the outcome complex vector of multiplication (N)
+    !  CAUTION: ONLY APPLICABLE TO LINEARLY POLARIZED HYDROGEN
     !**************************************************************
     type(complex_sb_mat), intent(in)  :: mat
     complex(8), intent(in)            :: vec(:)
@@ -198,15 +175,16 @@ contains
 
       ans(1:m) = mat%diagonal(1:m)*vec(1:m)
 
-      do i = 1,mat%nnz
-         ans(1:m) = ans(1:m) + [mat%offdiagonal(1:m-mat%nonzero_bands(i),mat%nonzero_bands(i))*&
-              vec(mat%nonzero_bands(i)+1:m),(z_zero, j=1,mat%nonzero_bands(i))]
-         ans(1:m) = ans(1:m) + [(z_zero, j=1,mat%nonzero_bands(i)), mat%offdiagonal(1:m-mat%nonzero_bands(i),mat%nonzero_bands(i))*&
-              vec(1:m-mat%nonzero_bands(i))]
+      do i = 1,mat%bsz-1
+         ans(1:m) = ans(1:m) + [mat%offdiagonal(1:m-i,i)*vec(i+1:m),(z_zero, j=1,i)]
+         ans(1:m) = ans(1:m) + [(z_zero, j=1,i), mat%offdiagonal(1:m-i,i)*vec(1:m-i)]
       end do
 
+      ans(1:m) = ans(1:m) + [mat%offdiagonal(1:m-r_size,mat%bsz)*vec(r_size+1:m),(z_zero, j=1,r_size)]
+      ans(1:m) = ans(1:m) + [(z_zero, j=1,r_size), mat%offdiagonal(1:m-r_size,mat%bsz)*vec(1:m-r_size)]
+
      else
-      stop 'type complex_sb_mat is not initilized!'
+        stop 'type complex_sb_mat is not initilized!'
      end if
 
   end function z_sb_matvec_mul
@@ -415,7 +393,6 @@ contains
       diag(:) = (1.d0 / dx**2) - ii*pot(x_grid(:))
       offdiag(1:ndim-1,1) = -0.5d0/dx**2
 
-
     case(2)
 
       diag(:) = (2.5d0 /2.d0 /dx**2) - ii*pot(x_grid(:))
@@ -436,7 +413,6 @@ contains
       offdiag(1:ndim-2,2) = 1.d0/10.d0/dx**2
       offdiag(1:ndim-3,3) = -4.d0/315.d0/dx**2
       offdiag(1:ndim-4,4) = 1.d0/1120.d0/dx**2
-
 
     case default
 

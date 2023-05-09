@@ -25,6 +25,8 @@ module parameters
   real(8)              :: r_max
   !> size of steps in spatial box
   real(8)              :: dr
+  !> radial grid size
+  integer              :: r_size
 
   !>**********************************************************************
   !> matrix variables
@@ -61,6 +63,14 @@ module parameters
   real(8)              :: arnoldi_threshold
   !> number of vectors to reorthogonalize against
   integer              :: arnoldi_reortho
+
+  !***********************************************************************
+  !crank-nicolson variables
+  !***********************************************************************
+  !> maximum number of GMRES iterations
+  integer             :: cn_gmres_max
+  !> GMRES tolerance
+  real(8)             :: cn_gmres_tol
   
   !***********************************************************************
   !symetric banded matrices variable

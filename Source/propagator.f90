@@ -8,7 +8,8 @@ use Lagrange_weights
 use grid, only: x
 implicit none
 private
-public  propagator_func, initialize_variables, select_propagator_type, itvolt_exp, diag_prop, cheby_prop, lanczos_prop, arnoldi_prop
+public  propagator_func, initialize_variables, select_propagator_type, itvolt_exp, diag_prop, &
+     cheby_prop, lanczos_prop, arnoldi_prop, z_cn
 
   interface 
      function propagator_func(mat, local_dt, psi) result(ans)
@@ -367,7 +368,7 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
        ! start iteration, adding an extra vector until convergence is reached 
        k = 2
        converged = .FALSE.
-       do while ( .not. (converged .or. k > lancz_itnum))
+       do while ( .not. (converged .or. k >= lancz_itnum))
           w(:) = sb_matvec_mul(mat, Q(:,k))
           alpha(k) = dot_product(Q(:,k), w)
 
@@ -440,7 +441,7 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
     else
        ! initialize hessenberg matrix as zero
        H(:,:) = 0
-       
+
        ! first vector is normalized psi
        Q(:,1) = psi(:)/sqrt(dot_product(psi,psi))
 
@@ -463,7 +464,8 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
        select_array(2) = .TRUE.
        k = 2
        converged = .FALSE.
-       do while ( .not. (converged .or. k > arnoldi_itnum))
+       do while ( .not. (converged .or. k >= arnoldi_itnum))
+          print *, k
           w(:) = sb_matvec_mul(mat, Q(:,k))
           do i=1,k
              H(i,k) = dot_product(Q(:,i),w)
@@ -472,25 +474,28 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
 
           ! find eigenvalues/eigenvectors of hessenberg matrix H(1:k,1:k)
           A(1:k,1:k) = H(1:k,1:k)
-          ! call zgeev('N', 'V', k, A(1:k,1:k), k, eigenvalues(1:k), VL, 1, eigenvectors(1:k,1:k), k, work, &
-          !     10*arnoldi_itnum,  rwork(1:2*k), info)
+          call zgeev('N', 'V', k, A(1:k,1:k), k, eigenvalues(1:k), VL, 1, eigenvectors(1:k,1:k), k, work, &
+               10*arnoldi_itnum,  rwork(1:2*k), info)
+          if (info /= 0) then
+             print *, 'eigensolve in arnoldi iteration failed at step ', k-1
+          end if
 
           ! call Hessenberg routine for eigenvalues
-          call zhseqr('E', 'N', k, 1, k, A(1:k,1:k), k, eigenvalues(1:k), Z, 1, work, 11*arnoldi_itnum, info)
-          if (info /= 0) then
-             print *, 'eigenvalue solve in arnoldi failed at step', k-1
-             stop
-          end if
+          ! call zhseqr('E', 'N', k, 1, k, A(1:k,1:k), k, eigenvalues(1:k), Z, 1, work, 11*arnoldi_itnum, info)
+          ! if (info /= 0) then
+          !    print *, 'eigenvalue solve in arnoldi failed at step', k-1
+          !    stop
+          ! end if
 
           ! use inverse iteration to find corresponding eigenvectors
-          A(1:k,1:k) = H(1:k,1:k)
-          eig_copy(1:k) = eigenvalues(1:k)
-          call zhsein('R', 'Q', 'N', select_array(1:k), k, A(1:k,1:k), k, eig_copy(1:k), VL(1,1:k), 1, &
-               eigenvectors(1:k,1:k), k, k, m, work2(1:k*k), rwork(1:k), ifaill, ifailr, info)
-          if (info /= 0) then
-             print *, 'eiegenvector solve in arnoldi iteration failed at step', k-1
-             stop
-          end if
+          ! A(1:k,1:k) = H(1:k,1:k)
+          ! eig_copy(1:k) = eigenvalues(1:k)
+          ! call zhsein('R', 'Q', 'N', select_array(1:k), k, A(1:k,1:k), k, eig_copy(1:k), VL(1,1:k), 1, &
+          !      eigenvectors(1:k,1:k), k, k, m, work2(1:k*k), rwork(1:k), ifaill, ifailr, info)
+          ! if (info /= 0) then
+          !    print *, 'eiegenvector solve in arnoldi iteration failed at step', k-1
+          !    stop
+          ! end if
 
           ! use diagonalization to apply the exponential to psi (note eigenvectors are not orthonormal)
           b(1:k) = matmul(transpose(conjg(Q(:,1:k))),psi)
@@ -503,6 +508,7 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
 
           ! check for convergence
           error = sqrt(dot_product(phi-ans, phi-ans))
+          print *, error
           if (error < arnoldi_threshold) then
              converged = .TRUE.
 
@@ -510,7 +516,6 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
              ! add next vector and reorthogonalize
              H(k+1,k) = sqrt(dot_product(w,w))
              Q(:,k+1) = w(:)/H(k+1,k)
-
              l = min(k, arnoldi_reortho)
              call zschmab(Q(:,k-l+1:k), Q(:,k+1), 1.d-10, size(psi), l, 1, m)
              
@@ -525,6 +530,65 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
     end if
     
   end function arnoldi_prop
+
+
+  ! applies a (complex) matrix exponential to a vector via Crank-Nicolson with GMRES
+  function z_cn(mat, local_dt, psi) result(ans)
+    type(complex_sb_mat), intent(in)        :: mat
+    real(8), intent(in)                     :: local_dt
+    complex(8), intent(in)                  :: psi(:)
+    complex(8)                              :: ans(size(psi)), RHS(size(psi)), iterate(size(psi))
+    complex(8), allocatable                 :: work(:)
+    real(8)                                 :: cntl(1:5), rinfo(1:2)
+    integer                                 :: irc(1:5), icntl(1:8), info(1:3), lwork
+    integer                                 :: m, j
+
+    ! construct right hand side vector (I - idt/2H)*psi
+    RHS(:) = psi(:) - ii*0.5d0*local_dt*sb_matvec_mul(mat,psi)
+    m = mat%mat_size
+
+    ! initialize GMRES parameters
+    call init_zgmres(icntl, cntl)
+    icntl(4) = 0
+    icntl(7) = cn_gmres_max
+    cntl(1) = cn_gmres_tol
+    
+    lwork =  cn_gmres_max*cn_gmres_max+cn_gmres_max*(m+5)+5*m+2
+    allocate(work(1:lwork))
+    work(m+1:2*m) = RHS(:)
+
+    ! call GMRES driver
+10  call drive_zgmres(m, m, cn_gmres_max, lwork, work, irc, icntl, cntl, info, rinfo)
+
+    ! perform matrix/vector multiplication if necessary
+    if (irc(1) == 1) then
+       iterate(:) = work(irc(2):irc(2)+m-1)
+       iterate(:) = iterate(:) + ii*0.5d0*local_dt*sb_matvec_mul(mat,iterate)
+       work(irc(4):irc(4)+m-1) = iterate(:)
+
+       go to 10
+
+    ! perform dot product if necessary
+    else if (irc(1) == 4) then
+       do j = 1,irc(5)
+          work(irc(4)+(j-1)) = dot_product(work(irc(2)+(j-1)*m:irc(2)+j*m-1),work(irc(3):irc(3)+m-1))
+       end do
+
+       go to 10
+
+    ! otherwise we have convergence
+    else
+       if (info(1) /= 0) then
+          print *, 'GMRES failed in Crank-Nicolson: info(1) = ', info(1)
+          stop
+       end if
+
+    end if
+
+    print *, info(2)
+    ans(:) = work(1:m)
+    
+  end function z_cn
 
   
   ! propagator for the two level atom

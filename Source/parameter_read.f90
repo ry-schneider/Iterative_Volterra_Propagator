@@ -24,6 +24,7 @@ contains
     ! read expansion parameters
     call conf%value_from_key('box_size', r_max)
     call conf%value_from_key('spatial_step_size', dr)
+    r_size = ceiling(r_max/dr)
     call conf%value_from_key('grid_type', grid_type)
     call conf%value_from_key('l_max', l_max)
     call conf%value_from_key('coul_num', coul_num)
@@ -49,10 +50,12 @@ contains
     call conf%value_from_key('radial_cutoff', r_0)
     call conf%value_from_key('absorber_amp', G_0)
 
-    ! read Arnoldi parameters
+    ! read exponential parameters
     call conf%value_from_key('arnoldi_iterations', arnoldi_itnum)
     call conf%value_from_key('arnoldi_threshold', arnoldi_threshold)
     call conf%value_from_key('arnoldi_reortho', arnoldi_reortho)
+    call conf%value_from_key('cn_gmres_max', cn_gmres_max)
+    call conf%value_from_key('cn_gmres_tol', cn_gmres_tol)
     
     ! read banded matrix parameters
     call conf%value_from_key('band_num_sym_mat', band_num_sym_mat)

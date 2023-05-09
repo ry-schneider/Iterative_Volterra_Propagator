@@ -31,17 +31,19 @@ contains
    ! runs Jacobi/Gauss Seidel iterations for the time step [t, t+dt]
    ! assumes V(t) = E(t)V for some fixed (time independent) symmetric banded matrix V
    ! input mat is real symmetric banded
-   subroutine d_iterative_loop(mat, t, psi, v, max_iter)
-     type(banded_sym_mat)                     :: mat, v
+   subroutine d_iterative_loop(h_zero, t, psi, v, max_iter)
+     type(banded_sym_mat)                     :: h_zero, v
+     type(banded_sym_mat)                     :: mat
      real(8)                                  :: t
      complex(8)                               :: psi(:)
      integer                                  :: max_iter
+     real(8)                                  :: diagonal(h_zero%mat_size), offdiagonal(h_zero%mat_size-1,h_zero%bsz)
      complex(8)                               :: inhomogeneity(size(psi),quad_pt)
      complex(8)                               :: iterative_ans(size(psi),quad_pt), phi(size(psi),quad_pt)
      complex(8)                               :: v_psi(size(psi),quad_pt), b(size(psi))
      complex(8)                               :: gs_diag(size(psi)), gs_off1(size(psi)-1), gs_off2(size(psi)-1)
      integer                                  :: IPIV(size(psi))
-     complex(8)                               :: AB(3*mat%bsz+1, size(psi))
+     complex(8)                               :: AB(3*h_zero%bsz+1, size(psi))
      complex(8)                               :: alpha
      integer                                  :: it_num
      real(8)                                  :: pt(quad_pt)
@@ -60,8 +62,16 @@ contains
      it_num = 0
      n = quad_pt
 
-     mat%diagonal(:) = mat%diagonal(:) + pulse(t + 0.5d0*dt)*v%diagonal(:)
-     mat%offdiagonal(:,:) = mat%offdiagonal(:,:) + pulse(t + 0.5d0*dt)*v%offdiagonal(:,:)
+     ! check that matrices are the same size with the same number of bands
+     if (h_zero%mat_size /= v%mat_size .or. h_zero%bsz /= v%bsz) then
+        print *, 'stop: h_zero and v are not the same size'
+        stop
+     end if
+     
+     ! initialize midpoint hamiltonian
+     diagonal(:) = h_zero%diagonal(:) + pulse(t + 0.5d0*dt)*v%diagonal(:)
+     offdiagonal(:,:) = h_zero%offdiagonal(:,:) + pulse(t + 0.5d0*dt)*v%offdiagonal(:,:)
+     call mat%initialize(h_zero%mat_size, h_zero%bsz, diagonal, offdiagonal)
 
      call initialize(mat)
      
@@ -211,22 +221,20 @@ contains
         
      end if
 
-     mat%diagonal(:) = mat%diagonal(:) - pulse(t + 0.5d0*dt)*v%diagonal(:)
-     mat%offdiagonal(:,:) = mat%offdiagonal(:,:) - pulse(t + 0.5d0*dt)*v%offdiagonal(:,:)
-
    end subroutine d_iterative_loop
 
 
    ! runs Jacobi/Gauss Seidel iterations for the time step [t, t+dt]
    ! assumes V(t) = E(t)V for some fixed (time independent) complex banded matrix V
-   ! input mat is complex banded and symmetric 
+   ! input mat is complex banded and symmetric
+   ! CAUTION: ONLY APPLICABLE TO LINEARLY POLARIZED HYDROGEN
    subroutine z_iterative_loop(h_zero, t, psi, v, max_iter)
      type(complex_sb_mat)                     :: h_zero, v
      type(complex_sb_mat)                     :: mat
      real(8)                                  :: t
      complex(8)                               :: psi(:)
      integer                                  :: max_iter
-     complex(8)                               :: diagonal(h_zero%mat_size), offdiagonal(h_zero%mat_size-1, h_zero%bsz)
+     complex(8)                               :: diagonal(h_zero%mat_size), offdiagonal(h_zero%mat_size-1,h_zero%bsz+1)
      complex(8)                               :: inhomogeneity(size(psi),quad_pt)
      complex(8)                               :: iterative_ans(size(psi),quad_pt), phi(size(psi),quad_pt)
      complex(8)                               :: v_psi(size(psi),quad_pt), b(size(psi))
@@ -237,7 +245,7 @@ contains
      integer                                  :: it_num
      real(8)                                  :: pt(quad_pt)
      real(8)                                  :: wt(quad_pt,quad_pt-1), comp_wt(quad_pt,quad_pt-1)
-     logical                                  :: converged
+     logical                                  :: converged, used
      real(8)                                  :: E_diff
      integer                                  :: i, j, k, l, r, s, u, p, q, a, c, n, info
 
@@ -251,17 +259,23 @@ contains
      it_num = 0
      n = quad_pt
 
-     diagonal(:) = mat%diagonal(:) + pulse(t + 0.5d0*dt)*v%diagonal(:)
-     offdiagonal(:,:) = h_zero%offdiagonal(:,:)
-     do i = 1,v%nnz
-        j = v%nonzero_bands(i)
-        offdiagonal(:,j) = offdiagonal(:,j) + pulse(t + 0.5d0*dt)*v%offdiagonal(:,j)
-     end do
-     call mat%initialize(h_zero%mat_size, h_zero%bsz, diagonal, offdiagonal)
+     ! check that matrices are the same size
+     if (h_zero%mat_size /= v%mat_size) then
+        print *, 'stop: h_zero and v are not the same size'
+        stop
+     end if
 
+     ! initialize midpoint hamiltonian
+     diagonal(:) = h_zero%diagonal(:) + pulse(t+0.5d0*dt)*v%diagonal(:)
+     offdiagonal(:,1:h_zero%bsz) = h_zero%offdiagonal(:,:)
+     offdiagonal(1:h_zero%mat_size-r_size,h_zero%bsz+1) = pulse(t+0.5d0*dt)*v%offdiagonal(1:h_zero%mat_size-r_size,1)
+     call mat%initialize(h_zero%mat_size, h_zero%bsz+1, diagonal, offdiagonal)
+
+     ! initialize method for handling the exponentials
      ! call initialize(mat)
      
      if (it_type == 'short_time') then
+        ! psi(:) = z_cn(mat, dt, psi)
         psi(:) = arnoldi_prop(mat, dt, psi)
         ! psi(:) = propagator(mat, dt, psi)
         
@@ -452,10 +466,12 @@ contains
    ! solves linear system on [t, t+dt] via GMRES
    ! assumes V(t) = E(t)V for some fixed (time independent) symmetric banded matrix V
    ! input mat is real symmetric banded
-   subroutine d_linear_solve(mat, t, psi, v, max_iter)
-     type(banded_sym_mat)                          :: mat, v
+   subroutine d_linear_solve(h_zero, t, psi, v, max_iter)
+     type(banded_sym_mat)                          :: h_zero, v
+     type(banded_sym_mat)                          :: mat
      real(8)                                       :: t
      complex(8)                                    :: psi(:)
+     real(8)                                       :: diagonal(h_zero%mat_size), offdiagonal(h_zero%mat_size-1, h_zero%bsz)
      complex(8)                                    :: RHS(size(psi)*(quad_pt-1)), v_psi(size(psi))
      complex(8)                                    :: soln(size(psi)*(quad_pt-1)), A_v(size(psi)*(quad_pt-1))
      complex(8)                                    :: v_soln(size(psi)*(quad_pt-1))
@@ -478,9 +494,16 @@ contains
      n = quad_pt
      d = size(psi)
 
-     ! replace mat with the value of the time-dependent hamiltonian at the midpoint of [t, t+dt]
-     mat%diagonal(:) = mat%diagonal(:) + pulse(t+0.5d0*dt)*v%diagonal(:)
-     mat%offdiagonal(:,:) = mat%offdiagonal(:,:) + pulse(t+0.5d0*dt)*v%offdiagonal(:,:)
+     ! check that matrices are the same size with the same number of bands
+     if (h_zero%mat_size /= v%mat_size .or. h_zero%bsz /= v%bsz) then
+        print *, 'stop: h_zero and v are not the same size'
+        stop
+     end if
+     
+     ! initialize midpoint hamiltonian
+     diagonal(:) = h_zero%diagonal(:) + pulse(t+0.5d0*dt)*v%diagonal(:)
+     offdiagonal(:,:) = h_zero%offdiagonal(:,:) + pulse(t+0.5d0*dt)*v%offdiagonal(:,:)
+     call mat%initialize(h_zero%mat_size, h_zero%bsz, diagonal, offdiagonal)
 
      ! initialize method for handling exponentials
      call initialize(mat)
@@ -558,10 +581,6 @@ contains
      end if
 
      psi = work(d*(n-2)+1:d*(n-1))
-    
-     ! reset for next step
-     mat%diagonal(:) = mat%diagonal(:) - pulse(t+0.5d0*dt)*v%diagonal(:)
-     mat%offdiagonal(:,:) = mat%offdiagonal(:,:) - pulse(t+0.5d0*dt)*v%offdiagonal(:,:)
      deallocate(work)
 
      ! track maximum number of iterations
@@ -575,12 +594,13 @@ contains
    ! solves linear system on [t, t+dt] via GMRES
    ! assumes V(t) = E(t)V for some fixed (time independent) complex banded matrix V
    ! input mat is complex banded and symmetric
+   ! CAUTION: ONLY APPLICABLE TO LINEARLY POLARIZED HYDROGEN
    subroutine z_linear_solve(h_zero, t, psi, v, max_iter)
      type(complex_sb_mat)                          :: h_zero, v
      type(complex_sb_mat)                          :: mat
      real(8)                                       :: t
      complex(8)                                    :: psi(:)
-     complex(8)                                    :: diagonal(h_zero%mat_size), offdiagonal(h_zero%mat_size-1, h_zero%bsz)
+     complex(8)                                    :: diagonal(h_zero%mat_size), offdiagonal(h_zero%mat_size-1,h_zero%bsz+1)
      complex(8)                                    :: RHS(size(psi)*(quad_pt-1)), v_psi(size(psi))
      complex(8)                                    :: soln(size(psi)*(quad_pt-1)), A_v(size(psi)*(quad_pt-1))
      complex(8)                                    :: v_soln(size(psi)*(quad_pt-1))
@@ -588,8 +608,9 @@ contains
      real(8)                                       :: wt(quad_pt, quad_pt-1), comp_wt(quad_pt, quad_pt-1)
      real(8)                                       :: cntl(1:5), rinfo(1:2)
      complex(8), allocatable                       :: work(:)
+     logical                                       :: used
      integer                                       :: irc(1:5), icntl(1:8), info(1:3), lwork, max_iter
-     integer                                       :: n, d, i, j, k, p
+     integer                                       :: n, d, i, j, k, p, l, s
 
      procedure(pulse_at_t_func), pointer           :: pulse
      ! procedure(propagator_func), pointer           :: propagator
@@ -603,15 +624,18 @@ contains
      n = quad_pt
      d = size(psi)
 
+     ! check that matrices are the same size
+     if (h_zero%mat_size /= v%mat_size) then
+        print *, 'stop: h_zero and v are not the same size'
+        stop
+     end if
+
      ! initialize midpoint hamiltonian
      diagonal(:) = h_zero%diagonal(:) + pulse(t+0.5d0*dt)*v%diagonal(:)
-     offdiagonal(:,:) = h_zero%offdiagonal(:,:)
-     do i = 1,v%nnz
-        j = v%nonzero_bands(i)
-        offdiagonal(:,j) = offdiagonal(:,j) + pulse(t+0.5d0*dt)*v%offdiagonal(:,j)
-     end do
-     call mat%initialize(h_zero%mat_size, h_zero%bsz, diagonal, offdiagonal)
-
+     offdiagonal(:,1:h_zero%bsz) = h_zero%offdiagonal(:,:)
+     offdiagonal(1:h_zero%mat_size-r_size,h_zero%bsz+1) = pulse(t+0.5d0*dt)*v%offdiagonal(1:h_zero%mat_size-r_size,1)
+     call mat%initialize(h_zero%mat_size, h_zero%bsz+1, diagonal, offdiagonal)
+     
      ! initialize method for handling exponentials
      ! call initialize(mat)
 
