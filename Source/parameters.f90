@@ -27,6 +27,8 @@ module parameters
   real(8)              :: dr
   !> radial grid size
   integer              :: r_size
+  !> radial grid tolerance
+  real(8)              :: grid_tol
 
   !>**********************************************************************
   !> matrix variables
@@ -152,6 +154,10 @@ module parameters
   integer                    :: l_max
   !> number of Coulomb functions to project on
   integer                    :: coul_num
+  !> minimum projection energy
+  real(8)                    :: e_min
+  !> projection energy step size
+  real(8)                    :: dE
 
   !**********************************************************************
   ! other complex variables and parameters

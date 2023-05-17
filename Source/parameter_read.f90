@@ -26,8 +26,11 @@ contains
     call conf%value_from_key('spatial_step_size', dr)
     r_size = ceiling(r_max/dr)
     call conf%value_from_key('grid_type', grid_type)
+    call conf%value_from_key('grid_tol', grid_tol)
     call conf%value_from_key('l_max', l_max)
     call conf%value_from_key('coul_num', coul_num)
+    call conf%value_from_key('e_min', e_min)
+    call conf%value_from_key('dE', dE)
 
     ! read propagation parameters
     call conf%value_from_key('total_time', t_intv)

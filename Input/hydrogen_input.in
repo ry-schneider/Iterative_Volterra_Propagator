@@ -9,14 +9,23 @@ spatial_step_size: 0.01d0
 ! grid type (options: half_grid, full_symmetric_grid)
 grid_type: half_grid
 
+! grid tolerance
+grid_tol: 1.d-7
+
 ! number of bands in finite difference approximation (1 is tridiagonal)
 band_num_sym_mat: 1
 
 ! number of angular momentum terms (i.e. maximum value of l is l_max-1)
-l_max: 26
+l_max: 2 ! 26
 
 ! number of continuum Coulomb functions to project radial wave onto
 coul_num: 400
+
+! minimum projection energy
+e_min: 0.0001
+
+! projection energy step size
+dE: 0.002
 
 !****************POTENTIAL AND PULSE PARAMETERS****************************
 
@@ -56,7 +65,7 @@ absorber_amp: 5d0
 total_time: 220.656d0
 
 ! time step size (dt)
-time_step_size: 0.001d0
+time_step_size: 0.01d0
 
 ! propagation method for matrix exponentials
 prop_method: arnoldi
@@ -100,5 +109,5 @@ gmres_max: 50
 ! example problem (used in data file name)
 example_problem: 3d_hydrogen
 
-! solution method (rk4, it_volt)
-soln_method: it_volt
+! solution method (split_operator, it_volt)
+soln_method: split_operator

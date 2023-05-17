@@ -10,11 +10,12 @@ program hydrogen
   use clebsch_gordan
   implicit none
 
-  type(complex_sb_mat)       :: h_zero, v
-  complex(8), allocatable    :: psi(:)
+  type(complex_sb_mat)       :: h_zero, v, h_grid, h_mid
+  type(banded_sym_mat)       :: angular_v, v_mid
+  complex(8), allocatable    :: psi(:), alternate_psi(:,:)
   real(8), allocatable       :: r_grid(:)
   real(8)                    :: t
-  integer                    :: i,d
+  integer                    :: i, j, r_reach, time_step
   integer                    :: max_iter
 
   procedure(pulse_at_t_func), pointer  :: pulse
@@ -24,54 +25,103 @@ program hydrogen
   max_iter = 0
 
   pulse => select_pulse_type(pulse_name)
-  d = r_size
 
   ! allocate arrays
-  allocate(r_grid(1:d), psi(1:l_max*d))
+  allocate(r_grid(1:r_size), alternate_psi(1:r_size,1:l_max))
 
   ! construct the radial grid (equally spaced on [dr, r_max])
-  do i = 1,d
+  do i = 1,r_size
      r_grid(i) = i*dr
   end do
 
-  call construct_hzero(h_zero, r_grid)
-  call construct_v(v, r_grid)
-
   ! construction initial wavefunction (starts in 1s)
-  psi(:) = 0
-  do i = 1,d
-     psi(i) = 2d0*exp(-r_grid(i))
+  alternate_psi(:,:) = 0d0
+  do i = 1,r_size
+     alternate_psi(i,1) = 2d0*r_grid(i)*exp(-r_grid(i))
   end do
 
+  ! set initial dynamic grid size
+  do i = r_size,1,-2
+     if (abs(alternate_psi(i,1)) > 1.d-9) then
+        r_reach = i
+        exit
+     end if
+  end do
+  r_reach = min(r_reach+100, r_size)
+  alternate_psi(r_reach+1:r_size,1) = 0d0
+
+  ! construct radial and angular operators
+  call h_grid%make_banded_matrix_on_grid(r_grid, dr, band_num_sym_mat)
+  do i = 1,r_size
+     h_grid%diagonal(i) = h_grid%diagonal(i) - 1d0/r_grid(i)
+  end do
+  call construct_angularv(angular_v)
+  call v_mid%initialize(l_max, 1, angular_v%diagonal, angular_v%offdiagonal)
+  call h_mid%initialize(r_size, band_num_sym_mat, h_grid%diagonal, h_grid%offdiagonal)
+  
   ! start propagation
   call begin_timing
+  time_step = 1
   t = 0
 
   do while (t < t_intv)
-     if (soln_method /= 'it_volt') then
-        stop
+     ! adjust grid size based on current wavefunction
+     if (time_step > 1) then
+        do i = 1,l_max
+           if (abs(alternate_psi(r_reach-100,i)) > grid_tol) then
+              r_reach = r_reach + 100
+              exit
+           end if
+        end do
+        r_reach = min(r_reach, r_size)
+     end if
 
-     ! call general iteration routines   
-     else if (it_type == 'gmres') then
-        call linear_solve(h_zero, t, psi, v, max_iter)
-     else
-        call iterative_loop(h_zero, t, psi, v, max_iter)
+     ! adjust midpoint operators
+     h_mid%mat_size = r_reach
+     h_mid%diagonal = h_grid%diagonal(1:r_reach)
+     h_mid%offdiagonal = h_grid%offdiagonal(1:r_reach-1,1:h_grid%bsz)
+     v_mid%offdiagonal =  pulse(t+0.5d0*dt)*angular_v%offdiagonal
+     
+     ! call split operator function (in propagator module)
+     if (soln_method == 'split_operator') then
+        alternate_psi(1:r_reach,:) = split_operator_cn(h_mid, v_mid, r_grid(1:r_reach), dt, alternate_psi(1:r_reach,:), 1)
+
+     ! call general iteration routines (in integral_method module)   
+     ! else if (it_type == 'gmres') then
+     !    call linear_solve(h_zero, t, psi, v, max_iter)
+     ! else
+     !    call iterative_loop(h_zero, t, psi, v, max_iter)
+        
      end if
 
      ! move to next step
+     time_step = time_step + 1   
      t = t + dt
-     print *, 'Time: ', t
+     print *, 'Time: ', t, 'Number of radial points: ', r_reach
   end do
 
   call stop_timing
   print *, 'Propogation finished -- computing ionization probabilities!'
   print *, '************************************'
 
-  call compute_ionization_probabilities(psi, r_grid)
+  ! write final wave function in data file
+  open(unit=88, file='final_wave_function.dat')
+  do i = 1,r_reach
+     write(88,*) alternate_psi(i,1), r_grid(i), 1
+  end do
+  close(88)
+
+  ! record observables
+  allocate(psi(1:r_reach*l_max))
+  do j = 1,l_max
+    psi(r_reach*(j-1)+1:j*r_reach) = alternate_psi(1:r_reach,j)
+  end do
+
+  call compute_ionization_probabilities(psi, r_grid(1:r_reach))
 
   print *, 'Propagation Time:'
   call print_timing
-  
+
 
 contains
 
@@ -107,7 +157,7 @@ contains
     print *, '************************************'
     
   end subroutine initial_print
-  
+
 
   subroutine construct_hzero(h_zero, r_grid)
     type(complex_sb_mat)       :: h_zero, h_grid
@@ -131,6 +181,23 @@ contains
     call h_zero%initialize(l_max*r_size, band_num_sym_mat, h_diagonal, h_offdiagonal)
     
   end subroutine construct_hzero
+
+
+  subroutine construct_angularv(angular_v)
+    type(banded_sym_mat)       :: angular_v
+    real(8), allocatable       :: v_diagonal(:), v_offdiagonal(:,:)
+    integer                    :: i
+
+    allocate(v_diagonal(1:l_max), v_offdiagonal(1:l_max-1,1))
+
+    v_diagonal(:) = 0
+    do i = 1,l_max-1
+       v_offdiagonal(i,1) = (1d0/3d0)*sqrt(dble((2*i-1)*(2*i+1)))*F_3J(i-1,0,i,0,1,0,.true.)**2
+    end do
+
+    call angular_v%initialize(l_max, 1, v_diagonal, v_offdiagonal)
+    
+  end subroutine construct_angularv
 
 
   subroutine construct_v(v, r_grid)
@@ -158,42 +225,115 @@ contains
     real(8), allocatable       :: momenta(:), spectra(:)
     real(8), allocatable       :: coulomb_waves(:,:), GC(:), FC(:), FCP(:), GCP(:)
     complex(8), allocatable    :: z_el(:)
-    integer                    :: i, j, k, p, ifail
+    real(8)                    :: total_prob
+    integer                    :: i, j, k, p, d, ifail
 
-    allocate(momenta(1:coul_num), coulomb_waves(1:r_size,1:l_max), GC(1:l_max), FCP(1:l_max), &
+    d = size(r_grid)
+
+    allocate(momenta(1:coul_num), coulomb_waves(1:d,1:l_max), GC(1:l_max), FCP(1:l_max), &
          GCP(1:l_max), z_el(1:l_max), spectra(1:coul_num))
 
     open(unit=87, file='hydrogen_spectra')
-    write(87,*) 'Energy', 'Angle-integrated Probability'
+    write(87,*) '         Energy      ', '     Angle-integrated Probability'
 
     do i = 1,coul_num
-       momenta(i) = sqrt(2*(0.0001d0 + (i-1)*0.002d0)) ! momenta match energies output by Nico's code
+       momenta(i) = sqrt(2*(e_min + (i-1)*dE)) ! momenta match energies output by Nico's code
     end do
 
     ! compute photoelectron spectra by projecting on Coulomb waves
     spectra(:) = 0
     do i = 1,coul_num
-       ! evaluate Coulomb functions on the grid
-       do j = 1,r_size
+       ! evaluate regular Coulomb functions on the grid
+       do j = 1,d
           call coul90(momenta(i)*r_grid(j), -1d0/momenta(i), 0d0, l_max-1, coulomb_waves(j,:), GC, FCP, GCP, 0, ifail)
        end do
 
-       ! integrate produce of psi and Coulomb functions via the composite trapezoidal rule (over radial grid) and sum
+       ! integrate produce of psi and Coulomb functions via Simpson's rule (over radial grid) and sum
        z_el(:) = 0
        do k = 1,l_max
-          do p = 1,r_size-1
-             z_el(k) = z_el(k) + sqrt(2/pi/momenta(i))*dr*coulomb_waves(p,k)*psi((k-1)*r_size+p)
-          end do
-          z_el(k) = z_el(k) + 0.5d0*sqrt(2/pi/momenta(i))*dr*coulomb_waves(r_size,k)*psi(k*r_size)
-          spectra(i) = spectra(i) + abs(z_el(k))**2
+          if (mod(d,2) == 0) then
+             do p = 1,d/2
+                z_el(k) = z_el(k) + 4d0*coulomb_waves(2*p-1,k)*psi((k-1)*d+2*p-1)
+             end do
+
+             do p = 1,d/2-1
+                z_el(k) = z_el(k) + 2d0*coulomb_waves(2*p,k)*psi((k-1)*d+2*p)
+             end do
+
+             z_el(k) = z_el(k) + coulomb_waves(d,k)*psi(k*d)
+             z_el(k) = (1d0/3d0)*dr*sqrt(2d0/(pi*momenta(i)))*z_el(k)
+             spectra(i) = spectra(i) + abs(z_el(k))**2
+          else
+             do p = 1,(d-1)/2
+                z_el(k) = z_el(k) + 4d0*coulomb_waves(2*p-1,k)*psi((k-1)*d+2*p-1)
+             end do
+
+             do p = 1,(d-1)/2-1
+                 z_el(k) = z_el(k) + 2d0*coulomb_waves(2*p,k)*psi((k-1)*d+2*p)
+             end do
+
+             z_el(k) = z_el(k) + coulomb_waves(d-1,k)*psi(k*d-1)
+             z_el(k) = (1d0/3d0)*z_el(k)
+             z_el(k) = z_el(k) + 0.5d0*coulomb_waves(d-1,k)*psi(k*d-1)
+             z_el(k) = z_el(k) + 0.5d0*coulomb_waves(d,k)*psi(k*d)
+             z_el(k) = dr*sqrt(2d0/(pi*momenta(i)))*z_el(k)
+             spectra(i) = spectra(i) + abs(z_el(k))**2
+             
+          end if
+          
+          ! composite trapezoidal rule
+          ! do p = 1,d-1
+          !    z_el(k) = z_el(k) + sqrt(2d0/(pi*momenta(i)))*dr*coulomb_waves(p,k)*psi((k-1)*d+p)
+          ! end do
+          ! z_el(k) = z_el(k) + 0.5d0*sqrt(2d0/(pi*momenta(i)))*dr*coulomb_waves(d,k)*psi(k*d)
+          ! spectra(i) = spectra(i) + abs(z_el(k))**2
+          
        end do
 
-       write(87,*) 0.5d0*momenta(i)**2, spectra(i)
+       write(87,*) e_min+(i-1)*dE, spectra(i)
     end do
 
     close(87)
 
-    print *, 'Total Ionization Probability: ', sum(spectra)
+    ! integrate total ionization probability with Simpson's rule
+    if (mod(coul_num,2) == 1) then
+       total_prob = spectra(1)
+       do i = 1,(coul_num-1)/2
+          total_prob = total_prob + 4d0*spectra(2*i)
+       end do
+
+       do i = 1,(coul_num-1)/2-1
+          total_prob = total_prob + 2d0*spectra(2*i+1)
+       end do
+       total_prob = total_prob + spectra(coul_num)
+       total_prob = (1d0/3d0)*0.002*total_prob
+       
+    else
+       total_prob = spectra(1)
+       do i = 1,(coul_num-2)/2
+          total_prob = total_prob + 4d0*spectra(2*i)
+       end do
+
+       do i = 1,(coul_num-2)/2-1
+          total_prob = total_prob + 2d0*spectra(2*i+1)
+       end do
+       
+       total_prob = total_prob + spectra(coul_num-1)
+       total_prob = (1d0/3d0)*total_prob
+       total_prob = total_prob + 0.5d0*spectra(coul_num-1)
+       total_prob = total_prob + 0.5d0*spectra(coul_num)
+       total_prob = 0.002*total_prob
+  
+    end if
+
+    ! trapezoidal rule
+    ! total_prob = 0.5d0*0.002d0*spectra(1)
+    ! do i = 2,coul_num-1
+    !    total_prob = total_prob + 0.002d0*spectra(i)
+    ! end do
+    ! total_prob = total_prob + 0.5d0*0.002d0*spectra(coul_num)
+    
+    print *, 'Total Ionization Probability: ', total_prob
     
   end subroutine compute_ionization_probabilities
 

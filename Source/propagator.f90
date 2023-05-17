@@ -9,7 +9,7 @@ use grid, only: x
 implicit none
 private
 public  propagator_func, initialize_variables, select_propagator_type, itvolt_exp, diag_prop, &
-     cheby_prop, lanczos_prop, arnoldi_prop, z_cn
+     cheby_prop, lanczos_prop, arnoldi_prop, z_cn, split_operator_cn
 
   interface 
      function propagator_func(mat, local_dt, psi) result(ans)
@@ -530,6 +530,177 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
     end if
     
   end function arnoldi_prop
+
+
+  ! applies linearly polarized hydrogen hamiltonian exponential to psi via split operator and Crank-Nicolson (CN)
+  ! h_grid is the r_reach x r_reach (tridiagonal) radial piece, to be updated for each l
+  ! v is the l_max x l_max angular piece (tridiagonal and real), to be updated at each grid point
+  ! psi is the wavefuction stored in a r_reach x l_max array
+  ! split operator is performed as [e^-i(dt/2)v]*[e^-i(dt)h_grid]*[e^-i(dt/2)v]*psi with each exponential done by CN
+  function split_operator_cn(h_grid, v, r_grid, local_dt, psi, split_type) result(ans)
+    type(complex_sb_mat), intent(in)        :: h_grid
+    type(banded_sym_mat), intent(in)        :: v
+    real(8), intent(in)                     :: r_grid(:)
+    real(8), intent(in)                     :: local_dt
+    complex(8), intent(in)                  :: psi(:,:)
+    integer, intent(in)                     :: split_type
+    complex(8)                              :: ans(size(r_grid),l_max)
+    complex(8)                              :: l_diagonal(l_max), l_rhs(l_max)
+    complex(8)                              :: l_offdiag(l_max-1), l_offdiag2(l_max-1)
+    complex(8)                              :: h_diagonal(size(r_grid))
+    complex(8)                              :: r_diagonal(size(r_grid)), r_rhs(size(r_grid))
+    complex(8)                              :: r_offdiag(size(r_grid)-1), r_offdiag2(size(r_grid)-1)
+    integer                                 :: i, j, k, d, info
+
+    d = size(r_grid)
+
+    ! Nico's split
+    if (split_type == 1) then
+       ! first exponential: e^{-i(dt/2)h_grid}*psi
+       do i = 1,l_max
+          ! update h_grid with l
+          do j = 1,d
+             h_diagonal(j) = h_grid%diagonal(j) + dble((i-1)*i)/(2d0*r_grid(j)**2)
+          end do
+
+          ! construct RHS vector and coefficient diagonal/off diagonal
+          r_rhs(:) = psi(:,i) - ii*(local_dt/4d0)*h_diagonal(:)*psi(:,i)
+          r_rhs(1:d-1) = r_rhs(1:d-1) - ii*(local_dt/4d0)*h_grid%offdiagonal(:,1)*psi(2:d,i)
+          r_rhs(2:d) = r_rhs(2:d) - ii*(local_dt/4d0)*h_grid%offdiagonal(:,1)*psi(1:d-1,i)
+          do j = 1,d
+             r_diagonal(j) = 1d0 + ii*(local_dt/4d0)*h_diagonal(j)
+          end do
+          r_offdiag(:) = ii*(local_dt/4d0)*h_grid%offdiagonal(:,1)
+          r_offdiag2(:) = r_offdiag(:)
+
+          ! call tridiagonal system solve
+          call zgtsv(d, 1, r_offdiag, r_diagonal, r_offdiag2, r_rhs, d, info)
+          if (info /= 0) then
+             print *, 'system solve in split operator failed'
+             stop
+          end if
+
+          ans(:,i) = r_rhs(:)
+       end do
+
+       ! second exponential: e^{-i(dt)v}*ans
+       do i = 1,d
+          ! construct RHS vector and coefficient diagonal/off diagonal
+          l_rhs(:) = ans(i,:) - ii*r_grid(i)*(local_dt/2d0)*sb_matvec_mul(v,ans(i,:))
+          do j = 1,l_max
+             l_diagonal(j) = 1d0
+          end do
+          l_offdiag(:) = ii*r_grid(i)*(local_dt/2d0)*v%offdiagonal(:,1)
+          l_offdiag2(:) = l_offdiag(:)
+
+          ! call tridiagonal system solve
+          call zgtsv(l_max, 1, l_offdiag, l_diagonal, l_offdiag2, l_rhs, l_max, info)
+          if (info /= 0) then
+             print *, 'system solve in split operator failed'
+             stop
+          end if
+
+          ans(i,:) = l_rhs(:)
+       end do
+
+       ! third exponential: e^{-i(dt/2)h_grid}*ans
+       do i = 1,l_max
+          ! update h_grid with l
+          do j = 1,d
+             h_diagonal(j) = h_grid%diagonal(j) + dble((i-1)*i)/(2d0*r_grid(j)**2)
+          end do
+
+          ! construct RHS vector and coefficient diagonal/off diagonal
+          r_rhs(:) = ans(:,i) - ii*(local_dt/4d0)*h_diagonal(:)*ans(:,i)
+          r_rhs(1:d-1) = r_rhs(1:d-1) - ii*(local_dt/4d0)*h_grid%offdiagonal(:,1)*ans(2:d,i)
+          r_rhs(2:d) = r_rhs(2:d) - ii*(local_dt/4d0)*h_grid%offdiagonal(:,1)*ans(1:d-1,i)
+          do j = 1,d
+             r_diagonal(j) = 1d0 + ii*(local_dt/4d0)*h_diagonal(j)
+          end do
+          r_offdiag(:) = ii*(local_dt/4d0)*h_grid%offdiagonal(:,1)
+          r_offdiag2(:) = r_offdiag(:)
+
+          ! call tridiagonal system solve
+          call zgtsv(d, 1, r_offdiag, r_diagonal, r_offdiag2, r_rhs, d, info)
+          if (info /= 0) then
+             print *, 'system solve in split operator failed'
+             stop
+          end if
+
+          ans(:,i) = r_rhs(:)
+       end do 
+       
+    else
+       ! first exponential: e^{-i(dt/2)v}*psi
+       do i = 1,r_size
+          ! construct RHS vector and coefficient diagonal/off diagonal
+          l_rhs(:) = psi(i,:) - ii*r_grid(i)*(local_dt/4d0)*sb_matvec_mul(v,psi(i,:))
+          do j = 1,l_max
+             l_diagonal(j) = 1d0
+          end do
+          l_offdiag(:) = ii*r_grid(i)*(local_dt/4d0)*v%offdiagonal(:,1)
+          l_offdiag2(:) = l_offdiag(:)
+
+          ! call tridiagonal system solve
+          call zgtsv(l_max, 1, l_offdiag, l_diagonal, l_offdiag2, l_rhs, l_max, info)
+          if (info /= 0) then
+             print *, 'system solve in split operator failed'
+             stop
+          end if
+
+          ans(i,:) = l_rhs(:)
+       end do
+
+       ! second exponential: e^{-i(dt)h_grid}*ans
+       do i = 1,l_max
+          ! update h_grid with l
+          do j = 1,r_size
+             h_diagonal(j) = h_grid%diagonal(j) + dble((i-1)*i)/(2d0*r_grid(j)**2)
+          end do
+
+          ! construct RHS vector and coefficient diagonal/off diagonal
+          r_rhs(:) = ans(:,i) - ii*(local_dt/2d0)*h_diagonal(:)*ans(:,i)
+          r_rhs(1:r_size-1) = r_rhs(1:r_size-1) - ii*(local_dt/2d0)*h_grid%offdiagonal(:,1)*ans(2:r_size,i)
+          r_rhs(2:r_size) = r_rhs(2:r_size) - ii*(local_dt/2d0)*h_grid%offdiagonal(:,1)*ans(1:r_size-1,i)
+          do j = 1,r_size
+             r_diagonal(j) = 1d0 + ii*(local_dt/2d0)*h_diagonal(j)
+          end do
+          r_offdiag(:) = ii*(local_dt/2d0)*h_grid%offdiagonal(:,1)
+          r_offdiag2(:) = r_offdiag(:)
+
+          ! call tridiagonal system solve
+          call zgtsv(r_size, 1, r_offdiag, r_diagonal, r_offdiag2, r_rhs, r_size, info)
+          if (info /= 0) then
+             print *, 'system solve in split operator failed'
+             stop
+          end if
+
+          ans(:,i) = r_rhs(:)
+       end do
+
+       ! final exponential: e^{-i(dt/2)v}*ans
+       do i = 1,r_size
+          ! construct RHS vector and coefficient diagonal/off diagonal
+          l_rhs(:) = ans(i,:) - ii*r_grid(i)*(local_dt/4d0)*sb_matvec_mul(v,ans(i,:))
+          do j = 1,l_max
+             l_diagonal(j) = 1d0
+          end do
+          l_offdiag(:) = ii*r_grid(i)*(local_dt/4d0)*v%offdiagonal(:,1)
+          l_offdiag2(:) = l_offdiag(:)
+
+          ! call tridiagonal system solve
+          call zgtsv(l_max, 1, l_offdiag, l_diagonal, l_offdiag2, l_rhs, l_max, info)
+          if (info /= 0) then
+             print *, 'system solve in split operator failed'
+             stop
+          end if
+
+          ans(i,:) = l_rhs(:)
+       end do
+
+    end if
+    
+  end function split_operator_cn
 
 
   ! applies a (complex) matrix exponential to a vector via Crank-Nicolson with GMRES
