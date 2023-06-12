@@ -9,10 +9,16 @@ add_library (src_files SHARED banded_matrices.f90
                 propagator.f90
                 pulse_module.f90)
 
-add_executable(hydrogen.exe
-		hydrogen.f90)
+find_package(OpenMP)
 
-target_link_libraries(hydrogen.exe src_files library ${lapackblas_lib})
+add_executable(hydrogen.exe
+                hydrogen.f90)
+
+if(OpenMP_Fortran_FOUND)
+   target_link_libraries(hydrogen.exe src_files library ${lapackblas_lib} OpenMP::OpenMP_Fortran)		
+else()
+   target_link_libraries(hydrogen.exe src_files library ${lapackblas_lib})
+endif()
 
 target_include_directories(hydrogen.exe PUBLIC $<TARGET_PROPERTY:library,Fortran_MODULE_DIRECTORY>)
 	      

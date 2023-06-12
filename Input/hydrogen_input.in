@@ -4,13 +4,13 @@
 box_size: 1500d0
 
 ! number of steps in spatial box
-spatial_step_size: 0.01d0
+spatial_step_size: 1.0d0
 
 ! grid type (options: half_grid, full_symmetric_grid)
 grid_type: half_grid
 
 ! grid tolerance
-grid_tol: 1.d-7
+grid_tol: 1.d-9
 
 ! number of bands in finite difference approximation (1 is tridiagonal)
 band_num_sym_mat: 1
@@ -62,22 +62,31 @@ absorber_amp: 5d0
 !********************PROPAGATION PARAMETERS******************************
 
 ! final propagation time
-total_time: 220.656d0
+total_time: 220 !220.656d0
 
 ! time step size (dt)
-time_step_size: 0.01d0
+time_step_size: 0.1d0
 
 ! propagation method for matrix exponentials
 prop_method: arnoldi
 
 ! max number of iterations for arnoldi 
-arnoldi_iterations: 200
+arnoldi_iterations: 50
 
 ! convergence threshold for arnoldi
-arnoldi_threshold: 1.d-10
+arnoldi_threshold: 1.d-8
 
 ! number of vectors to reorthogonalize against at each arnoldi step (at most arnoldi_iterations)
 arnoldi_reortho: 50
+
+! max number of iterations for lanczos
+lancz_iterations: 50
+
+! convergence threshold for lanczos
+lancz_threshold: 1.d-9
+
+! number of vectors to reorthogonalize against at each lanczos step (at most lancz_iterations)
+lancz_reortho: 50
 
 ! max number of GMRES iterations for crank-nicolson
 cn_gmres_max: 300
@@ -85,11 +94,11 @@ cn_gmres_max: 300
 ! GMRES tolerance for crank-nicolson
 cn_gmres_tol: 1.d-2
 
-! iteration type (options: short_time, jacobi, gmres) **no gauss_seidel for now**
-it_type: short_time
+! iteration type (options: jacobi, gauss_seidel)
+it_type: jacobi
 
 ! number of quadrature points
-quad_pt: 5
+quad_pt: 6
 
 ! type of quadrature (newton_cotes or gauss)
 quad_type: gauss
@@ -109,5 +118,13 @@ gmres_max: 50
 ! example problem (used in data file name)
 example_problem: 3d_hydrogen
 
-! solution method (split_operator, it_volt)
-soln_method: split_operator
+! solution method (split_operator, itvolt)
+soln_method: itvolt
+
+! itvolt version
+! options:
+  ! radial_lanczos - real radial exponentials done by lanczos
+  ! radial_arnoldi - complex radial exponentials done by arnoldi
+  ! split_operator_cn - full complex midpoint exponentials done with split operator and crank-nicolson
+  ! full_lanczos - real midpoint exponentials done by lanczos (reusing vectors)
+itvolt_version: full_lanczos

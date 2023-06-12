@@ -234,7 +234,7 @@ contains
      real(8)                                  :: t
      complex(8)                               :: psi(:)
      integer                                  :: max_iter
-     complex(8)                               :: diagonal(h_zero%mat_size), offdiagonal(h_zero%mat_size-1,h_zero%bsz+1)
+     complex(8)                               :: diagonal(h_zero%mat_size), offdiagonal(h_zero%mat_size-1,h_zero%bsz)
      complex(8)                               :: inhomogeneity(size(psi),quad_pt)
      complex(8)                               :: iterative_ans(size(psi),quad_pt), phi(size(psi),quad_pt)
      complex(8)                               :: v_psi(size(psi),quad_pt), b(size(psi))
@@ -260,22 +260,20 @@ contains
      n = quad_pt
 
      ! check that matrices are the same size
-     if (h_zero%mat_size /= v%mat_size) then
+     if (h_zero%mat_size /= v%mat_size .or. h_zero%bsz /= v%bsz) then
         print *, 'stop: h_zero and v are not the same size'
         stop
      end if
 
      ! initialize midpoint hamiltonian
      diagonal(:) = h_zero%diagonal(:) + pulse(t+0.5d0*dt)*v%diagonal(:)
-     offdiagonal(:,1:h_zero%bsz) = h_zero%offdiagonal(:,:)
-     offdiagonal(1:h_zero%mat_size-r_size,h_zero%bsz+1) = pulse(t+0.5d0*dt)*v%offdiagonal(1:h_zero%mat_size-r_size,1)
-     call mat%initialize(h_zero%mat_size, h_zero%bsz+1, diagonal, offdiagonal)
+     offdiagonal(:,:) = h_zero%offdiagonal(:,:) + pulse(t+0.5d0*dt)*v%offdiagonal(:,:)
+     call mat%initialize(h_zero%mat_size, h_zero%bsz, diagonal, offdiagonal)
 
      ! initialize method for handling the exponentials
      ! call initialize(mat)
      
      if (it_type == 'short_time') then
-        ! psi(:) = z_cn(mat, dt, psi)
         psi(:) = arnoldi_prop(mat, dt, psi)
         ! psi(:) = propagator(mat, dt, psi)
         
@@ -600,7 +598,7 @@ contains
      type(complex_sb_mat)                          :: mat
      real(8)                                       :: t
      complex(8)                                    :: psi(:)
-     complex(8)                                    :: diagonal(h_zero%mat_size), offdiagonal(h_zero%mat_size-1,h_zero%bsz+1)
+     complex(8)                                    :: diagonal(h_zero%mat_size), offdiagonal(h_zero%mat_size-1,h_zero%bsz)
      complex(8)                                    :: RHS(size(psi)*(quad_pt-1)), v_psi(size(psi))
      complex(8)                                    :: soln(size(psi)*(quad_pt-1)), A_v(size(psi)*(quad_pt-1))
      complex(8)                                    :: v_soln(size(psi)*(quad_pt-1))
@@ -625,16 +623,15 @@ contains
      d = size(psi)
 
      ! check that matrices are the same size
-     if (h_zero%mat_size /= v%mat_size) then
+     if (h_zero%mat_size /= v%mat_size .or. h_zero%bsz /= v%bsz) then
         print *, 'stop: h_zero and v are not the same size'
         stop
      end if
 
      ! initialize midpoint hamiltonian
      diagonal(:) = h_zero%diagonal(:) + pulse(t+0.5d0*dt)*v%diagonal(:)
-     offdiagonal(:,1:h_zero%bsz) = h_zero%offdiagonal(:,:)
-     offdiagonal(1:h_zero%mat_size-r_size,h_zero%bsz+1) = pulse(t+0.5d0*dt)*v%offdiagonal(1:h_zero%mat_size-r_size,1)
-     call mat%initialize(h_zero%mat_size, h_zero%bsz+1, diagonal, offdiagonal)
+     offdiagonal(:,:) = h_zero%offdiagonal(:,:) + pulse(t+0.5d0*dt)*v%offdiagonal(:,:)
+     call mat%initialize(h_zero%mat_size, h_zero%bsz, diagonal, offdiagonal)
      
      ! initialize method for handling exponentials
      ! call initialize(mat)

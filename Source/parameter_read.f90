@@ -59,6 +59,9 @@ contains
     call conf%value_from_key('arnoldi_reortho', arnoldi_reortho)
     call conf%value_from_key('cn_gmres_max', cn_gmres_max)
     call conf%value_from_key('cn_gmres_tol', cn_gmres_tol)
+    call conf%value_from_key('lancz_iterations', lancz_itnum)
+    call conf%value_from_key('lancz_threshold', lanc_threshold)
+    call conf%value_from_key('lancz_reortho', lancz_reortho)
     
     ! read banded matrix parameters
     call conf%value_from_key('band_num_sym_mat', band_num_sym_mat)
@@ -78,6 +81,7 @@ contains
     ! read harmonic oscillator parameters
     call conf%value_from_key('example_problem', example_problem)
     call conf%value_from_key('soln_method', soln_method)
+    call conf%value_from_key('itvolt_version', itvolt_version)
 
     call make_datafile_name
 

@@ -148,6 +148,8 @@ module parameters
   integer                    :: samples
   !> solution method for model ode
   character(:), allocatable  :: soln_method
+  !> itvolt version
+  character(:), allocatable  :: itvolt_version
   !> add/subtract midpoint in model ode?
   integer                    :: add
   !> number of angular momentum terms in hydrogen expansion

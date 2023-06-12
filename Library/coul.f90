@@ -80,7 +80,7 @@ real*8 WI, A,B, AR,AI,BR,BI,DR,DI,DP,DQ, ALPHA,BETA
 real*8 E2MM1, FJWKB,GJWKB, P,Q,PACCQ, GAMMA,GAMMAI
 INTEGER          IEXP, NFP, NPQ, L, MINL,MAXL, LIMIT
 LOGICAL          ETANE0, XLTURN
-PARAMETER      ( LIMIT = 30000, SMALL = 1.0D-150 )
+PARAMETER      ( LIMIT = 50000, SMALL = 1.0D-150 )
 COMMON  /STEED/  PACCQ,NFP,NPQ,IEXP,MINL    !not required in code
 COMMON  /DESET/  CF1,P,Q,F,GAMMA,WRONSK     !information only
 !----------------------------------------------------------------------

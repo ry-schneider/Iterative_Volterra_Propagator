@@ -107,7 +107,7 @@ contains
     allocate(self%diagonal(m_size))
     allocate(self%offdiagonal(m_size-1, b_size))
     allocate(self%eigenvalues(m_size))
-    ! allocate(self%eigenvectors(m_size, m_size))
+    allocate(self%eigenvectors(m_size, m_size))
 
     self%diagonal(:) = diag(:)
     self%offdiagonal(:,:) = 0
@@ -161,7 +161,6 @@ contains
     !  mat : complex symmetric banded matrix (NxN)
     !  vec : complex vector the matrix is multiplied into (N)
     !  ans : the outcome complex vector of multiplication (N)
-    !  CAUTION: ONLY APPLICABLE TO LINEARLY POLARIZED HYDROGEN
     !**************************************************************
     type(complex_sb_mat), intent(in)  :: mat
     complex(8), intent(in)            :: vec(:)
@@ -175,13 +174,10 @@ contains
 
       ans(1:m) = mat%diagonal(1:m)*vec(1:m)
 
-      do i = 1,mat%bsz-1
+      do i = 1,mat%bsz
          ans(1:m) = ans(1:m) + [mat%offdiagonal(1:m-i,i)*vec(i+1:m),(z_zero, j=1,i)]
          ans(1:m) = ans(1:m) + [(z_zero, j=1,i), mat%offdiagonal(1:m-i,i)*vec(1:m-i)]
       end do
-
-      ans(1:m) = ans(1:m) + [mat%offdiagonal(1:m-r_size,mat%bsz)*vec(r_size+1:m),(z_zero, j=1,r_size)]
-      ans(1:m) = ans(1:m) + [(z_zero, j=1,r_size), mat%offdiagonal(1:m-r_size,mat%bsz)*vec(1:m-r_size)]
 
      else
         stop 'type complex_sb_mat is not initilized!'
