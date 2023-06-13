@@ -15,11 +15,8 @@ program hydrogen
   type(complex_sb_mat)       :: h_grid, h_mid
   type(banded_sym_mat)       :: angular_v, v_mid, h_real, h_real2
   complex(8), allocatable    :: psi(:,:)
-  complex(8), allocatable    :: vector_psi(:), reference_psi(:)
   real(8), allocatable       :: r_grid(:)
-  real(8), allocatable       :: diag(:), offd(:,:)
-  real(8)                    :: t, junk, wave_value
-  real(8)                    :: real0, imag0, real1, imag1
+  real(8)                    :: t
   integer                    :: i, j, r_reach, time_step, info
   integer                    :: max_iter
 
@@ -31,100 +28,47 @@ program hydrogen
 
   pulse => select_pulse_type(pulse_name)
 
-  ! allocate arrays
-  allocate(r_grid(1:r_size), psi(1:r_size,1:l_max), diag(1:r_size), offd(1:r_size-1,1:1))
-
-  ! construct the radial grid (equally spaced on [dr, r_max])
-  do i = 1,r_size
-     r_grid(i) = i*dr
-  end do
-
-  ! construction initial wavefunction (starts in 1s)
-  do i = 1,r_size
-     psi(i,1) = 2d0*r_grid(i)*exp(-r_grid(i))
-  end do
-  ! psi(:,:) = 0d0
-  ! open(unit=65, file='h-0.01.wfn', status='old')
-  ! do i = 1,1999
-  !    read(65,*) junk, junk, wave_value
-  !    psi(i,1) = dcmplx(wave_value,0d0)
-  ! end do
-
-  ! set initial dynamic grid size
-  do i = r_size,1,-1
-     if (abs(psi(i,1)) > 1.d-12) then
-        r_reach = i
-        exit
-     end if
-  end do
-  r_reach = min(r_reach+100, r_size)
-  psi(r_reach+1:r_size,1) = 0d0
-
-  print *, 'Number of steps: ', int(t_intv/dt)
-  print *, 'Time: ', 0d0, 'Number of radial points: ', r_reach
-
-  ! construct radial and angular operators
-  call h_grid%make_banded_matrix_on_grid(r_grid, dr, band_num_sym_mat)
-  do i = 1,r_size
-     h_grid%diagonal(i) = h_grid%diagonal(i) - 1d0/r_grid(i)
-  end do
-  call construct_angularv(angular_v)
-  call v_mid%initialize(l_max, 1, angular_v%diagonal, angular_v%offdiagonal)
-  call h_mid%initialize(r_reach, band_num_sym_mat, h_grid%diagonal(1:r_reach), h_grid%offdiagonal(1:r_reach-1,:))
-
-  diag(:) = 1d0/dr**2
-  offd(:,1) = -0.5d0/dr**2
-  do i = 1,r_size
-     diag(i) = diag(i) - 1d0/r_grid(i)
-  end do
-  call h_real%initialize(r_size, 1, diag, offd)
-  call h_real2%initialize(r_reach, h_real%bsz, h_real%diagonal(1:r_reach), h_real%offdiagonal(1:r_reach-1,:))
+  allocate(r_grid(1:r_size), psi(1:r_size,1:l_max))
+  call initialize_hydrogen(psi, r_grid, r_reach)
+  call construct_operators(r_grid, r_reach, h_grid, angular_v, v_mid, h_mid, h_real, h_real2)
 
   if (soln_method == 'split_operator') then
      call short_time_half_step(h_mid, dt, r_grid(1:r_reach), psi(1:r_reach,:))
   end if
 
-  ! start propagation
   call begin_timing
   t = 0
   max_iter = 0
   do time_step = 1,int(t_intv/dt)
-     ! adjust grid size based on current wavefunction
-     do i = 1,l_max
-        if (abs(psi(r_reach-100,i)) > grid_tol) then
-           r_reach = r_reach + 100
-           exit
-        end if
-     end do
-     r_reach = min(r_reach, r_size)
-
-     ! update midpoint operators
-     h_mid%mat_size = r_reach
-     h_mid%diagonal = h_grid%diagonal(1:r_reach)
-     h_mid%offdiagonal = h_grid%offdiagonal(1:r_reach-1,1:h_grid%bsz)
-     h_real2%mat_size = r_reach
-     h_real2%diagonal  = h_real%diagonal(1:r_reach)
-     h_real2%offdiagonal = h_real%offdiagonal(1:r_reach-1,1:h_real%bsz)
+     call adjust_dynamic_grid(psi, h_grid, h_real,  r_reach, h_mid, h_real2)
      
-     ! call split operator function (in propagator module)
      if (soln_method == 'split_operator') then
         v_mid%offdiagonal =  pulse(t+0.5d0*dt)*angular_v%offdiagonal
         psi(1:r_reach,:) = split_operator_cn(time_step, h_mid, v_mid, r_grid(1:r_reach), dt, psi(1:r_reach,:), 1)
-        
+  
      else if (soln_method == 'itvolt') then
         if (itvolt_version == 'radial_lanczos') then
            call hydrogen_itvolt1(t, h_real2, angular_v, r_grid(1:r_reach), psi(1:r_reach,:), max_iter)
+           
         else if (itvolt_version == 'radial_arnoldi') then
            call hydrogen_itvolt2(t, h_mid, angular_v, r_grid(1:r_reach), psi(1:r_reach,:), max_iter)
+           
         else if (itvolt_version == 'split_operator_cn') then
            call hydrogen_itvolt3(t, h_mid, angular_v, r_grid(1:r_reach), psi(1:r_reach,:), max_iter)
+           
         else if (itvolt_version == 'full_lanczos') then
            call hydrogen_itvolt4(t, h_real2, angular_v, r_grid(1:r_reach), psi(1:r_reach,:), max_iter)
+
+        else
+           print *, 'itvolt version not programmed'
+           stop
+           
         end if
         
      else
         print *, 'solution method not programmed'
         stop
+        
      end if
 
      t = t + dt
@@ -142,43 +86,12 @@ program hydrogen
   end if
 
   call stop_timing
-  
-  ! record observables
-  print *, '************************************'
-  print *, 'Computing ionization probabilities!'
-  print *, '************************************'
-  allocate(vector_psi(1:r_reach*l_max), reference_psi(1:r_reach*l_max))
-  do j = 1,l_max
-    vector_psi(r_reach*(j-1)+1:j*r_reach) = psi(1:r_reach,j)
-  end do
 
-  call compute_ionization_probabilities(vector_psi, r_grid(1:r_reach))
-
-  ! test probability computation
-  if (dt == 0.01d0 .and. dr == 0.01d0 .and. l_max == 2) then
-     open(unit=75, file='wfn_01.dat', status='old')
-     do i = 1,r_reach
-        read(75,*) junk, real0, imag0, real1, imag1
-        reference_psi(i) = dcmplx(real0, imag0)
-        reference_psi(r_reach+i) = dcmplx(real1, imag1)
-     end do
-
-     print *, 'Reference ionization probabilities:'
-     print *, '************************************'
-
-     call compute_ionization_probabilities(reference_psi, r_grid(1:r_reach))
-  end if
-  
-  ! write final wave function in data file
-  open(unit=88, file='final_wave_function.dat')
-  do i = 1,r_reach
-     write(88,*) r_grid(i), real(psi(i,:)), aimag(psi(i,:)) 
-  end do
-  close(88)
+  call compute_ionization_probabilities(psi(1:r_reach,:), r_grid(1:r_reach), 'simpson')
 
   print *, 'Propagation Time:'
   call print_timing
-
+  
 
 contains
 
@@ -213,6 +126,76 @@ contains
     
   end subroutine initial_print
 
+
+  subroutine initialize_hydrogen(psi, r_grid, r_reach)
+    complex(8)                 :: psi(:,:)
+    real(8)                    :: r_grid(:)
+    integer                    :: r_reach
+    integer                    :: i
+    real(8)                    :: junk, wave_value
+
+    ! construct the radial grid (equally spaced on [dr, r_max]
+    do i = 1,r_size
+       r_grid(i) = i*dr
+    end do
+
+    ! construct initial wavefunction (starts in 1s)
+    do i = 1,r_size
+       psi(i,1) = 2d0*r_grid(i)*exp(-r_grid(i))
+    end do
+    ! open(unit=65, file='h-0.01.wfn', status='old')
+    ! do i = 1,1999
+    !    read(65,*) junk, junk, wave_value
+    !    psi(i,1) = dcmplx(wave_value,0d0)
+    ! end do
+
+    ! set initial dynamic grid and truncate
+    do i = r_size,1,-1
+       if (abs(psi(i,1)) > 1.d-12) then
+          r_reach = i
+          exit
+       end if
+    end do
+    r_reach = min(r_reach+100, r_size)
+    psi(r_reach+1:r_size,1) = 0d0
+
+    print *, 'Number of steps: ', int(t_intv/dt)
+    print *, 'Time: ', 0d0, 'Number of radial points: ', r_reach
+    
+  end subroutine initialize_hydrogen
+
+
+  subroutine construct_operators(r_grid, r_reach, h_grid, angular_v, v_mid, h_mid, h_real, h_real2)
+    real(8), intent(in)        :: r_grid(:)
+    integer, intent(in)        :: r_reach
+    type(complex_sb_mat)       :: h_grid, h_mid
+    type(banded_sym_mat)       :: angular_v, v_mid, h_real, h_real2
+    real(8), allocatable       :: diag(:), offd(:,:)
+    integer                    :: i
+
+    ! construct angular operators
+    call construct_angularv(angular_v)
+    v_mid = angular_v
+
+    ! construct complex radial operators
+    call h_grid%make_banded_matrix_on_grid(r_grid, dr, band_num_sym_mat)
+    do i = 1,r_size
+       h_grid%diagonal(i) = h_grid%diagonal(i) - 1d0/r_grid(i)
+    end do
+    call h_mid%initialize(r_reach, h_grid%bsz, h_grid%diagonal(1:r_reach), h_grid%offdiagonal(1:r_reach-1,:))
+
+    ! construct real radial operators
+    allocate(diag(1:r_size), offd(1:r_size-1,1:1))
+    diag(:) = 1d0/dr**2
+    offd(:,1) = -0.5d0/dr**2
+    do i = 1,r_size
+       diag(i) = diag(i) - 1d0/r_grid(i)
+    end do
+    call h_real%initialize(r_size, 1, diag, offd)
+    call h_real2%initialize(r_reach, 1, h_real%diagonal(1:r_reach), h_real%offdiagonal(1:r_reach-1,:))
+    
+  end subroutine construct_operators
+
   
   subroutine construct_angularv(angular_v)
     type(banded_sym_mat)       :: angular_v
@@ -231,14 +214,48 @@ contains
   end subroutine construct_angularv
 
 
-  subroutine compute_ionization_probabilities(psi, r_grid)
-    complex(8)                 :: psi(:)
-    real(8)                    :: r_grid(:)
-    real(8), allocatable       :: momenta(:), spectra(:)
-    real(8), allocatable       :: coulomb_waves(:,:), GC(:), FC(:), FCP(:), GCP(:)
-    complex(8), allocatable    :: z_el(:)
-    real(8)                    :: total_prob
-    integer                    :: i, j, k, p, d, ifail
+  subroutine adjust_dynamic_grid(psi, h_grid, h_real, r_reach, h_mid, h_real2)
+    complex(8), intent(in)            :: psi(:,:)
+    type(complex_sb_mat), intent(in)  :: h_grid
+    type(banded_sym_mat), intent(in)  :: h_real
+    integer                           :: r_reach
+    type(complex_sb_mat)              :: h_mid
+    type(banded_sym_mat)              :: h_real2
+    integer                           :: i
+
+    ! adjust grid size
+    do i = 1,l_max
+       if (abs(psi(r_reach-100,i)) > grid_tol) then
+          r_reach = r_reach + 100
+          exit
+       end if
+    end do
+    r_reach = min(r_reach, r_size)
+
+    ! update operators
+    h_mid%mat_size = r_reach
+    h_mid%diagonal = h_grid%diagonal(1:r_reach)
+    h_mid%offdiagonal = h_grid%offdiagonal(1:r_reach-1,:)
+    h_real2%mat_size = r_reach
+    h_real2%diagonal = h_real%diagonal(1:r_reach)
+    h_real2%offdiagonal = h_real%offdiagonal(1:r_reach-1,:)
+    
+  end subroutine adjust_dynamic_grid
+
+
+  subroutine compute_ionization_probabilities(psi, r_grid, quadrature)
+    complex(8), intent(in)        :: psi(:,:)
+    real(8), intent(in)           :: r_grid(:)
+    character(len=*), intent(in)  :: quadrature
+    real(8), allocatable          :: momenta(:), spectra(:)
+    real(8), allocatable          :: coulomb_waves(:,:), GC(:), FC(:), FCP(:), GCP(:)
+    complex(8), allocatable       :: z_el(:)
+    real(8)                       :: total_prob
+    integer                       :: i, j, k, p, d, ifail
+
+    print *, '************************************'
+    print *, 'Computing ionization probabilities!'
+    print *, '************************************'
 
     d = size(r_grid)
 
@@ -260,45 +277,54 @@ contains
           call coul90(momenta(i)*r_grid(j), -1d0/momenta(i), 0d0, l_max-1, coulomb_waves(j,:), GC, FCP, GCP, 0, ifail)
        end do
 
-       ! integrate produce of psi and Coulomb functions via Simpson's rule (over radial grid) and sum
+       ! integrate produce of psi and Coulomb functions and sum
        z_el(:) = 0
        do k = 1,l_max
-          if (mod(d,2) == 0) then
-             do p = 1,d/2
-                z_el(k) = z_el(k) + 4d0*coulomb_waves(2*p-1,k)*psi((k-1)*d+2*p-1)
-             end do
+          ! Simpson's rule
+          if (quadrature == 'simpson') then
+             if (mod(d,2) == 0) then
+                do p = 1,d/2
+                   z_el(k) = z_el(k) + 4d0*coulomb_waves(2*p-1,k)*psi(2*p-1,k)
+                end do
 
-             do p = 1,d/2-1
-                z_el(k) = z_el(k) + 2d0*coulomb_waves(2*p,k)*psi((k-1)*d+2*p)
-             end do
+                do p = 1,d/2-1
+                   z_el(k) = z_el(k) + 2d0*coulomb_waves(2*p,k)*psi(2*p,k)
+                end do
 
-             z_el(k) = z_el(k) + coulomb_waves(d,k)*psi(k*d)
-             z_el(k) = (1d0/3d0)*dr*sqrt(2d0/(pi*momenta(i)))*z_el(k)
+                z_el(k) = z_el(k) + coulomb_waves(d,k)*psi(d,k)
+                z_el(k) = (1d0/3d0)*dr*sqrt(2d0/(pi*momenta(i)))*z_el(k)
+                spectra(i) = spectra(i) + abs(z_el(k))**2
+             else
+                do p = 1,(d-1)/2
+                   z_el(k) = z_el(k) + 4d0*coulomb_waves(2*p-1,k)*psi(2*p-1,k)
+                end do
+
+                do p = 1,(d-1)/2-1
+                   z_el(k) = z_el(k) + 2d0*coulomb_waves(2*p,k)*psi(2*p,k)
+                end do
+
+                z_el(k) = z_el(k) + coulomb_waves(d-1,k)*psi(d-1,k)
+                z_el(k) = (1d0/3d0)*z_el(k)
+                z_el(k) = z_el(k) + 0.5d0*coulomb_waves(d-1,k)*psi(d-1,k)
+                z_el(k) = z_el(k) + 0.5d0*coulomb_waves(d,k)*psi(d,k)
+                z_el(k) = dr*sqrt(2d0/(pi*momenta(i)))*z_el(k)
+                spectra(i) = spectra(i) + abs(z_el(k))**2
+             
+             end if
+
+          ! composite trapezoidal rule   
+          else if (quadrature == 'trapezoid') then   
+             do p = 1,d-1
+                z_el(k) = z_el(k) + sqrt(2d0/(pi*momenta(i)))*dr*coulomb_waves(p,k)*psi(p,k)
+             end do
+             z_el(k) = z_el(k) + 0.5d0*sqrt(2d0/(pi*momenta(i)))*dr*coulomb_waves(d,k)*psi(d,k)
              spectra(i) = spectra(i) + abs(z_el(k))**2
+
           else
-             do p = 1,(d-1)/2
-                z_el(k) = z_el(k) + 4d0*coulomb_waves(2*p-1,k)*psi((k-1)*d+2*p-1)
-             end do
-
-             do p = 1,(d-1)/2-1
-                 z_el(k) = z_el(k) + 2d0*coulomb_waves(2*p,k)*psi((k-1)*d+2*p)
-             end do
-
-             z_el(k) = z_el(k) + coulomb_waves(d-1,k)*psi(k*d-1)
-             z_el(k) = (1d0/3d0)*z_el(k)
-             z_el(k) = z_el(k) + 0.5d0*coulomb_waves(d-1,k)*psi(k*d-1)
-             z_el(k) = z_el(k) + 0.5d0*coulomb_waves(d,k)*psi(k*d)
-             z_el(k) = dr*sqrt(2d0/(pi*momenta(i)))*z_el(k)
-             spectra(i) = spectra(i) + abs(z_el(k))**2
+             print *, 'quadrature for ionization probabilities not programmed'
+             stop
              
           end if
-          
-          ! composite trapezoidal rule
-          ! do p = 1,d-1
-          !    z_el(k) = z_el(k) + sqrt(2d0/(pi*momenta(i)))*dr*coulomb_waves(p,k)*psi((k-1)*d+p)
-          ! end do
-          ! z_el(k) = z_el(k) + 0.5d0*sqrt(2d0/(pi*momenta(i)))*dr*coulomb_waves(d,k)*psi(k*d)
-          ! spectra(i) = spectra(i) + abs(z_el(k))**2
           
        end do
 
@@ -307,45 +333,57 @@ contains
 
     close(87)
 
-    ! integrate total ionization probability with Simpson's rule
-    if (mod(coul_num,2) == 1) then
-       total_prob = spectra(1)
-       do i = 1,(coul_num-1)/2
-          total_prob = total_prob + 4d0*spectra(2*i)
-       end do
+    ! integrate total ionization probability
+    ! Simpson's rule
+    if (quadrature == 'simpson') then
+       if (mod(coul_num,2) == 1) then
+          total_prob = spectra(1)
+          do i = 1,(coul_num-1)/2
+             total_prob = total_prob + 4d0*spectra(2*i)
+          end do
 
-       do i = 1,(coul_num-1)/2-1
-          total_prob = total_prob + 2d0*spectra(2*i+1)
-       end do
-       total_prob = total_prob + spectra(coul_num)
-       total_prob = (1d0/3d0)*0.002*total_prob
+          do i = 1,(coul_num-1)/2-1
+             total_prob = total_prob + 2d0*spectra(2*i+1)
+          end do
+          total_prob = total_prob + spectra(coul_num)
+          total_prob = (1d0/3d0)*0.002*total_prob
        
-    else
-       total_prob = spectra(1)
-       do i = 1,(coul_num-2)/2
-          total_prob = total_prob + 4d0*spectra(2*i)
-       end do
+       else
+          total_prob = spectra(1)
+          do i = 1,(coul_num-2)/2
+             total_prob = total_prob + 4d0*spectra(2*i)
+          end do
 
-       do i = 1,(coul_num-2)/2-1
-          total_prob = total_prob + 2d0*spectra(2*i+1)
-       end do
+          do i = 1,(coul_num-2)/2-1
+             total_prob = total_prob + 2d0*spectra(2*i+1)
+          end do
        
-       total_prob = total_prob + spectra(coul_num-1)
-       total_prob = (1d0/3d0)*total_prob
-       total_prob = total_prob + 0.5d0*spectra(coul_num-1)
-       total_prob = total_prob + 0.5d0*spectra(coul_num)
-       total_prob = 0.002*total_prob
+          total_prob = total_prob + spectra(coul_num-1)
+          total_prob = (1d0/3d0)*total_prob
+          total_prob = total_prob + 0.5d0*spectra(coul_num-1)
+          total_prob = total_prob + 0.5d0*spectra(coul_num)
+          total_prob = 0.002*total_prob
   
-    end if
+       end if
 
-    ! trapezoidal rule
-    ! total_prob = 0.5d0*0.002d0*spectra(1)
-    ! do i = 2,coul_num-1
-    !    total_prob = total_prob + 0.002d0*spectra(i)
-    ! end do
-    ! total_prob = total_prob + 0.5d0*0.002d0*spectra(coul_num)
+    ! composite trapezoidal rule   
+    else if (quadrature == 'trapezoid') then  
+       total_prob = 0.5d0*0.002d0*spectra(1)
+       do i = 2,coul_num-1
+          total_prob = total_prob + 0.002d0*spectra(i)
+       end do
+       total_prob = total_prob + 0.5d0*0.002d0*spectra(coul_num)
+       
+    end if
     
     print *, 'Total Ionization Probability: ', total_prob
+
+    ! write final wavefunction in data file
+    open(unit=88, file='final_wave_function.dat')
+    do i = 1,d
+       write(88,*) r_grid(i), real(psi(i,:)), aimag(psi(i,:))
+    end do
+    close(88)
     
   end subroutine compute_ionization_probabilities
 

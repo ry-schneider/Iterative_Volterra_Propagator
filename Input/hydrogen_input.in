@@ -127,4 +127,4 @@ soln_method: itvolt
   ! radial_arnoldi - complex radial exponentials done by arnoldi
   ! split_operator_cn - full complex midpoint exponentials done with split operator and crank-nicolson
   ! full_lanczos - real midpoint exponentials done by lanczos (reusing vectors)
-itvolt_version: full_lanczos
+itvolt_version: radial_lanczos
