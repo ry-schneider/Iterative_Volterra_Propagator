@@ -10,6 +10,7 @@ program hydrogen
   use timing
   use clebsch_gordan
   use Lagrange_weights
+  use omp_lib
   implicit none
 
   type(complex_sb_mat)       :: h_grid, h_mid
@@ -151,7 +152,7 @@ contains
 
     ! set initial dynamic grid and truncate
     do i = r_size,1,-1
-       if (abs(psi(i,1)) > 1.d-12) then
+       if (abs(psi(i,1)) > 1.d-9) then
           r_reach = i
           exit
        end if
@@ -400,7 +401,8 @@ contains
 
     d = size(r_grid(:))
     allocate(h_diagonal(1:d), r_rhs(1:d), r_offdiag(1:d-1), r_offdiag2(1:d-1), r_diagonal(1:d))
-    
+
+    !$OMP parallel do private(i,j,h_diagonal,r_rhs,r_diagonal,r_offdiag,r_offdiag2,info)
      do i = 1,l_max
         ! update h_grid with l
         do j = 1,d
@@ -426,6 +428,7 @@ contains
 
         psi(1:d,i) = r_rhs(:)
      end do
+     !$OMP end parallel do
     
   end subroutine short_time_half_step
    

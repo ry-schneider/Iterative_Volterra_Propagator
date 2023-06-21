@@ -7,7 +7,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 
 if(CMAKE_Fortran_COMPILER_ID MATCHES GNU)
-    set(CMAKE_Fortran_FLAGS         "${CMAKE_Fortran_FLAGS}")
+    set(CMAKE_Fortran_FLAGS         "-fopenmp ${CMAKE_Fortran_FLAGS}")
     set(CMAKE_Fortran_FLAGS_DEBUG   "-cpp -g -fbacktrace -fcheck=all")
     set(CMAKE_Fortran_FLAGS_RELEASE "-cpp -Ofast -march=native")
     set(lapackblas_lib "-L/usr/lib/ -llapack -lblas")

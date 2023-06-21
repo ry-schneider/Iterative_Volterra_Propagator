@@ -4,7 +4,7 @@
 box_size: 1500d0
 
 ! number of steps in spatial box
-spatial_step_size: 1.0d0
+spatial_step_size: 0.01d0
 
 ! grid type (options: half_grid, full_symmetric_grid)
 grid_type: half_grid
@@ -119,7 +119,7 @@ gmres_max: 50
 example_problem: 3d_hydrogen
 
 ! solution method (split_operator, itvolt)
-soln_method: itvolt
+soln_method: split_operator
 
 ! itvolt version
 ! options:

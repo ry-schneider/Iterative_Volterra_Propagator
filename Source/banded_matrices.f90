@@ -72,7 +72,7 @@ contains
     allocate(self%diagonal(m_size))
     allocate(self%offdiagonal(m_size-1, b_size))
     allocate(self%eigenvalues(m_size))
-    allocate(self%eigenvectors(m_size, m_size))
+    ! allocate(self%eigenvectors(m_size, m_size))
 
     do j = 1, b_size
       do i = 1, m_size - 1
@@ -107,7 +107,7 @@ contains
     allocate(self%diagonal(m_size))
     allocate(self%offdiagonal(m_size-1, b_size))
     allocate(self%eigenvalues(m_size))
-    allocate(self%eigenvectors(m_size, m_size))
+    ! allocate(self%eigenvectors(m_size, m_size))
 
     self%diagonal(:) = diag(:)
     self%offdiagonal(:,:) = 0
