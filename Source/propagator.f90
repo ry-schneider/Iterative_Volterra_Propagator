@@ -10,7 +10,7 @@ use omp_lib
 implicit none
 private
 public  propagator_func, initialize_variables, select_propagator_type, itvolt_exp, diag_prop, &
-     cheby_prop, lanczos_prop, arnoldi_prop, z_cn, split_operator_cn
+     cheby_prop, lanczos_prop, arnoldi_prop, split_operator_cn
 
   interface 
      function propagator_func(mat, local_dt, psi) result(ans)
@@ -545,11 +545,11 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
     complex(8), intent(in)                  :: psi(:,:)
     integer, intent(in)                     :: time_step, split_type
     complex(8)                              :: ans(size(r_grid),l_max)
-    complex(8)                              :: l_diagonal(l_max), l_rhs(l_max)
-    complex(8)                              :: l_offdiag(l_max-1), l_offdiag2(l_max-1)
-    complex(8)                              :: h_diagonal(size(r_grid))
-    complex(8)                              :: r_diagonal(size(r_grid)), r_rhs(size(r_grid))
-    complex(8)                              :: r_offdiag(size(r_grid)-1), r_offdiag2(size(r_grid)-1)
+    complex(8), allocatable                 :: l_diagonal(:), l_rhs(:)
+    complex(8), allocatable                 :: l_offdiag(:), l_offdiag2(:)
+    complex(8), allocatable                 :: h_diagonal(:)
+    complex(8), allocatable                 :: r_diagonal(:), r_rhs(:)
+    complex(8), allocatable                 :: r_offdiag(:), r_offdiag2(:)
     integer                                 :: i, j, k, d, info
 
     d = size(r_grid)
@@ -559,6 +559,7 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
        ! first exponential: e^{-i(dt)v}*psi
        !$OMP parallel do private(i,j,l_rhs,l_diagonal,l_offdiag,l_offdiag2,info)
        do i = 1,d
+          allocate(l_rhs(1:l_max), l_diagonal(1:l_max), l_offdiag(1:l_max-1), l_offdiag2(1:l_max-1))
           ! construct RHS vector and coefficient diagonal/off diagonal
           l_rhs(:) = psi(i,:) - ii*r_grid(i)*(local_dt/2d0)*sb_matvec_mul(v,psi(i,:))
           do j = 1,l_max
@@ -575,6 +576,7 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
           end if
 
           ans(i,:) = l_rhs(:)
+          deallocate(l_rhs, l_diagonal, l_offdiag, l_offdiag2)
        end do
        !$OMP end parallel do
 
@@ -582,6 +584,7 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
        if (time_step <= int(t_intv/dt)-1) then
           !$OMP parallel do private(i,j,h_diagonal,r_rhs,r_diagonal,r_offdiag,r_offdiag2,info)
           do i = 1,l_max
+             allocate(h_diagonal(1:d), r_rhs(1:d), r_diagonal(1:d), r_offdiag(1:d-1), r_offdiag2(1:d-1))
              ! update h_grid with l
              do j = 1,d
                 h_diagonal(j) = h_grid%diagonal(j) + dble((i-1)*i)/(2d0*r_grid(j)**2)
@@ -605,6 +608,7 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
              end if
 
              ans(:,i) = r_rhs(:)
+             deallocate(h_diagonal, r_rhs, r_diagonal, r_offdiag, r_offdiag2)
           end do
           !$OMP end parallel do
 
@@ -613,6 +617,7 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
     ! h_grid x v x h_grid split
     else if (split_type == 2) then
        ! first exponential: e^{-i(dt/2)h_grid}*psi
+       allocate(h_diagonal(1:d), r_rhs(1:d), r_diagonal(1:d), r_offdiag(1:d-1), r_offdiag2(1:d-1))
        do i = 1,l_max
           ! update h_grid with l
           do j = 1,d
@@ -640,6 +645,7 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
       end do
 
       ! second exponential: e^{-i(dt)v}*ans
+      allocate(l_rhs(1:l_max), l_diagonal(1:l_max), l_offdiag(1:l_max-1), l_offdiag2(1:l_max-1))
       do i = 1,d
          ! construct RHS vector and coefficient diagonal/off diagonal
          l_rhs(:) = ans(i,:) - ii*r_grid(i)*(local_dt/2d0)*sb_matvec_mul(v,ans(i,:))
@@ -689,6 +695,7 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
     ! v x h_grid x v split   
     else
       ! first exponential: e^{-i(dt/2)v}*psi
+      allocate(l_rhs(1:l_max), l_diagonal(1:l_max), l_offdiag(1:l_max-1), l_offdiag2(1:l_max-1))
       do i = 1,d
          ! construct RHS vector and coefficient diagonal/off diagonal
          l_rhs(:) = psi(i,:) - ii*r_grid(i)*(local_dt/4d0)*sb_matvec_mul(v,psi(i,:))
@@ -709,6 +716,7 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
       end do
 
       ! second exponential: e^{-i(dt)h_grid}*ans
+      allocate(h_diagonal(1:d), r_rhs(1:d), r_diagonal(1:d), r_offdiag(1:d-1), r_offdiag2(1:d-1))
       do i = 1,l_max
          ! update h_grid with l
          do j = 1,d
@@ -760,65 +768,6 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
   end function split_operator_cn
 
 
-  ! applies a (complex) matrix exponential to a vector via Crank-Nicolson with GMRES
-  function z_cn(mat, local_dt, psi) result(ans)
-    type(complex_sb_mat), intent(in)        :: mat
-    real(8), intent(in)                     :: local_dt
-    complex(8), intent(in)                  :: psi(:)
-    complex(8)                              :: ans(size(psi)), RHS(size(psi)), iterate(size(psi))
-    complex(8), allocatable                 :: work(:)
-    real(8)                                 :: cntl(1:5), rinfo(1:2)
-    integer                                 :: irc(1:5), icntl(1:8), info(1:3), lwork
-    integer                                 :: m, j
-
-    ! construct right hand side vector (I - idt/2H)*psi
-    RHS(:) = psi(:) - ii*0.5d0*local_dt*sb_matvec_mul(mat,psi)
-    m = mat%mat_size
-
-    ! initialize GMRES parameters
-    call init_zgmres(icntl, cntl)
-    icntl(4) = 0
-    icntl(7) = cn_gmres_max
-    cntl(1) = cn_gmres_tol
-    
-    lwork =  cn_gmres_max*cn_gmres_max+cn_gmres_max*(m+5)+5*m+2
-    allocate(work(1:lwork))
-    work(m+1:2*m) = RHS(:)
-
-    ! call GMRES driver
-10  call drive_zgmres(m, m, cn_gmres_max, lwork, work, irc, icntl, cntl, info, rinfo)
-
-    ! perform matrix/vector multiplication if necessary
-    if (irc(1) == 1) then
-       iterate(:) = work(irc(2):irc(2)+m-1)
-       iterate(:) = iterate(:) + ii*0.5d0*local_dt*sb_matvec_mul(mat,iterate)
-       work(irc(4):irc(4)+m-1) = iterate(:)
-
-       go to 10
-
-    ! perform dot product if necessary
-    else if (irc(1) == 4) then
-       do j = 1,irc(5)
-          work(irc(4)+(j-1)) = dot_product(work(irc(2)+(j-1)*m:irc(2)+j*m-1),work(irc(3):irc(3)+m-1))
-       end do
-
-       go to 10
-
-    ! otherwise we have convergence
-    else
-       if (info(1) /= 0) then
-          print *, 'GMRES failed in Crank-Nicolson: info(1) = ', info(1)
-          stop
-       end if
-
-    end if
-
-    print *, info(2)
-    ans(:) = work(1:m)
-    
-  end function z_cn
-
-  
   ! propagator for the two level atom
   ! exploits the fact that the Hamiltonian is always anti-diagonal
   function two_level_prop(mat, local_dt, psi) result(ans)

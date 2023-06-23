@@ -22,7 +22,7 @@ program hydrogen
   integer                    :: max_iter
 
   procedure(pulse_at_t_func), pointer  :: pulse
-
+  
   call hydrogen_read
   call initial_print
   max_iter = 0
@@ -41,7 +41,7 @@ program hydrogen
   t = 0
   max_iter = 0
   do time_step = 1,int(t_intv/dt)
-     call adjust_dynamic_grid(psi, h_grid, h_real,  r_reach, h_mid, h_real2)
+     call adjust_dynamic_grid(psi, h_grid, h_real, r_reach, h_mid, h_real2)
      
      if (soln_method == 'split_operator') then
         v_mid%offdiagonal =  pulse(t+0.5d0*dt)*angular_v%offdiagonal
@@ -251,7 +251,7 @@ contains
     real(8), allocatable          :: momenta(:), spectra(:)
     real(8), allocatable          :: coulomb_waves(:,:), GC(:), FC(:), FCP(:), GCP(:)
     complex(8), allocatable       :: z_el(:)
-    real(8)                       :: total_prob
+    real(8)                       :: total_prob, dummy, h
     integer                       :: i, j, k, p, d, ifail
 
     print *, '************************************'
@@ -260,8 +260,7 @@ contains
 
     d = size(r_grid)
 
-    allocate(momenta(1:coul_num), coulomb_waves(1:d,1:l_max), GC(1:l_max), FCP(1:l_max), &
-         GCP(1:l_max), z_el(1:l_max), spectra(1:coul_num))
+    allocate(momenta(1:coul_num), spectra(1:coul_num))
 
     open(unit=87, file='hydrogen_spectra')
     write(87,*) '         Energy      ', '     Angle-integrated Probability'
@@ -273,13 +272,28 @@ contains
     ! compute photoelectron spectra by projecting on Coulomb waves
     spectra(:) = 0
     do i = 1,coul_num
-       ! evaluate regular Coulomb functions on the grid
+       allocate(coulomb_waves(1:d,1:l_max), GC(1:l_max), FCP(1:l_max), GCP(1:l_max), z_el(1:l_max))
+       
+       ! evaluate regular Coulomb functions on the grid via Numerov
+       h = momenta(i)*dr
+       call coul90(momenta(i)*r_grid(1), -1d0/momenta(i), 0d0, l_max-1, coulomb_waves(1,:), GC, FCP, GCP, 0, ifail)
+       call coul90(momenta(i)*r_grid(2), -1d0/momenta(i), 0d0, l_max-1, coulomb_waves(2,:), GC, FCP, GCP, 0, ifail)
+       do j = 1,l_max
+          do k = 3,d
+             coulomb_waves(k,j) = (2d0*coulomb_waves(k-1,j)*(1-5d0*h**2/12d0*(1+2d0/(r_grid(k-1)*momenta(i)**2)&
+                  -j*(j-1)/(r_grid(k-1)*momenta(i))**2))-coulomb_waves(k-2,j)*(1+h**2/12d0*(1&
+                  +2d0/(r_grid(k-2)*momenta(i)**2)-j*(j-1)/(r_grid(k-2)*momenta(i))**2)))/(1&
+                  +h**2/12d0*(1+2d0/(r_grid(k)*momenta(i)**2)-j*(j-1)/(r_grid(k)*momenta(i))**2))
+          end do
+       end do
+       
        do j = 1,d
           call coul90(momenta(i)*r_grid(j), -1d0/momenta(i), 0d0, l_max-1, coulomb_waves(j,:), GC, FCP, GCP, 0, ifail)
        end do
 
        ! integrate produce of psi and Coulomb functions and sum
        z_el(:) = 0
+       dummy = 0
        do k = 1,l_max
           ! Simpson's rule
           if (quadrature == 'simpson') then
@@ -294,7 +308,7 @@ contains
 
                 z_el(k) = z_el(k) + coulomb_waves(d,k)*psi(d,k)
                 z_el(k) = (1d0/3d0)*dr*sqrt(2d0/(pi*momenta(i)))*z_el(k)
-                spectra(i) = spectra(i) + abs(z_el(k))**2
+                dummy = dummy + abs(z_el(k))**2
              else
                 do p = 1,(d-1)/2
                    z_el(k) = z_el(k) + 4d0*coulomb_waves(2*p-1,k)*psi(2*p-1,k)
@@ -309,7 +323,7 @@ contains
                 z_el(k) = z_el(k) + 0.5d0*coulomb_waves(d-1,k)*psi(d-1,k)
                 z_el(k) = z_el(k) + 0.5d0*coulomb_waves(d,k)*psi(d,k)
                 z_el(k) = dr*sqrt(2d0/(pi*momenta(i)))*z_el(k)
-                spectra(i) = spectra(i) + abs(z_el(k))**2
+                dummy = dummy + abs(z_el(k))**2
              
              end if
 
@@ -319,17 +333,22 @@ contains
                 z_el(k) = z_el(k) + sqrt(2d0/(pi*momenta(i)))*dr*coulomb_waves(p,k)*psi(p,k)
              end do
              z_el(k) = z_el(k) + 0.5d0*sqrt(2d0/(pi*momenta(i)))*dr*coulomb_waves(d,k)*psi(d,k)
-             spectra(i) = spectra(i) + abs(z_el(k))**2
+             dummy = dummy + abs(z_el(k))**2
 
           else
              print *, 'quadrature for ionization probabilities not programmed'
              stop
              
           end if
-          
+   
        end do
+       
+       spectra(i) = dummy
+       deallocate(coulomb_waves, GC, FCP, GCP, z_el)    
+    end do
 
-       write(87,*) e_min+(i-1)*dE, spectra(i)
+    do i = 1,coul_num
+        write(87,*) e_min+(i-1)*dE, spectra(i)
     end do
 
     close(87)
@@ -400,10 +419,10 @@ contains
     integer                             :: d, i, j, info
 
     d = size(r_grid(:))
-    allocate(h_diagonal(1:d), r_rhs(1:d), r_offdiag(1:d-1), r_offdiag2(1:d-1), r_diagonal(1:d))
-
+ 
     !$OMP parallel do private(i,j,h_diagonal,r_rhs,r_diagonal,r_offdiag,r_offdiag2,info)
-     do i = 1,l_max
+    do i = 1,l_max
+        allocate(h_diagonal(1:d), r_rhs(1:d), r_offdiag(1:d-1), r_offdiag2(1:d-1), r_diagonal(1:d))
         ! update h_grid with l
         do j = 1,d
            h_diagonal(j) = h_mid%diagonal(j) + dble((i-1)*i)/(2d0*r_grid(j)**2)
@@ -427,6 +446,7 @@ contains
         end if
 
         psi(1:d,i) = r_rhs(:)
+        deallocate(h_diagonal, r_rhs, r_offdiag, r_offdiag2, r_diagonal)
      end do
      !$OMP end parallel do
     
@@ -467,19 +487,21 @@ contains
     do i = 2,n-1
        comp_wt(:,i) = comp_wt(:,i-1) + wt(:,i)
     end do
-
-    call mat%initialize(h_real%mat_size, h_real%bsz, h_real%diagonal, h_real%offdiagonal)
+    
     pot(:) = potential(r_grid)
     
     ! evaluate inhomogeneity at the quadrature points
     inhomogeneity(:,:,1) = psi(:,:)
     do j = 2,n
+       !$OMP parallel do private(i,k,mat)
        do i = 1,l_max
+          mat = h_real
           do k = 1,d
              mat%diagonal(k) = h_real%diagonal(k) + dble(i*(i-1))/(2d0*r_grid(k)**2)
           end do
           inhomogeneity(:,i,j) = lanczos_prop(mat, pt(j)-pt(1), psi(:,i))
        end do
+       !$OMP end parallel do
     end do
 
     converged = .FALSE.
@@ -500,23 +522,29 @@ contains
             b(:,:) = inhomogeneity(:,:,k)
 
             do j = 1,k-1
+               !$OMP parallel do private(l,p,mat)
                do l = 1,l_max
+                  mat = h_real
                   do p = 1,d
                      mat%diagonal(p) = h_real%diagonal(p) + dble(l*(l-1))/(2d0*r_grid(p)**2)
                   end do
                   b(:,l) = b(:,l) - ii*comp_wt(j,k-1)*lanczos_prop(mat, pt(k)-pt(j), v_psi(:,l,j))
                end do
+               !$OMP end parallel do
             end do
 
             b(:,:) = b(:,:) - ii*comp_wt(k,k-1)*v_psi(:,:,k)
 
             do j = k+1,n
+               !$OMP parallel do private(l,p,mat)
                do l = 1,l_max
+                  mat = h_real
                   do p = 1,d
                      mat%diagonal(p) = h_real%diagonal(p) + dble(l*(l-1))/(2d0*r_grid(p)**2)
                   end do
                    b(:,l) = b(:,l) - ii*comp_wt(j,k-1)*lanczos_prop(mat, pt(k)-pt(j), v_psi(:,l,j))
                end do
+               !$OMP end parallel do
             end do
 
             iterative_ans(:,:,k) = b(:,:)
@@ -579,17 +607,18 @@ contains
        comp_wt(:,i) = comp_wt(:,i-1) + wt(:,i)
     end do
 
-    call mat%initialize(h_mid%mat_size, h_mid%bsz, h_mid%diagonal, h_mid%offdiagonal)
-       
     ! evaluate inhomogeneity at the quadrature points
     inhomogeneity(:,:,1) = psi(:,:)
     do j = 2,n
+       !$OMP parallel do private(k,mat)
        do k = 1,l_max
+          mat = h_mid
           do p = 1,d
              mat%diagonal(p) = h_mid%diagonal(p) + dble(k*(k-1))/(2d0*r_grid(p)**2)
           end do
           inhomogeneity(:,k,j) = arnoldi_prop(mat, pt(j)-pt(1), psi(:,k))
        end do
+       !$OMP end parallel do
     end do
 
     converged = .FALSE.
@@ -603,30 +632,36 @@ contains
          do i = 1,n
             do j = 1,d
                v_psi(j,:,i) = r_grid(j)*pulse(pt(i))*sb_matvec_mul(v,iterative_ans(j,:,i))
-             end do
+            end do
          end do
 
          do k = 2,n
             b(:,:) = inhomogeneity(:,:,k)
-
+            
             do j = 1,k-1
+               !$OMP parallel do private(l,p,mat)
                do l = 1,l_max
+                  mat = h_mid
                   do p = 1,d
                      mat%diagonal(p) = h_mid%diagonal(p) + dble(l*(l-1))/(2d0*r_grid(p)**2)
                   end do
                   b(:,l) = b(:,l) - ii*comp_wt(j,k-1)*arnoldi_prop(mat, pt(k)-pt(j), v_psi(:,l,j))
                end do
+               !$OMP end parallel do
             end do
 
             b(:,:) = b(:,:) - ii*comp_wt(k,k-1)*v_psi(:,:,k)
 
             do j = k+1,n
+               !$OMP parallel do private(l,p,mat)
                do l = 1,l_max
+                  mat = h_mid
                   do p = 1,d
                      mat%diagonal(p) = h_mid%diagonal(p) + dble(l*(l-1))/(2d0*r_grid(p)**2)
                   end do
                    b(:,l) = b(:,l) - ii*comp_wt(j,k-1)*arnoldi_prop(mat, pt(k)-pt(j), v_psi(:,l,j))
                end do
+               !$OMP end parallel do 
             end do
 
             iterative_ans(:,:,k) = b(:,:)
