@@ -53,7 +53,7 @@ total_time: 100d0
 time_step_size: 0.1d0
 
 ! propagation method for matrix exponentials (options: diagonalization, chebyshev, lanczos, itvolt)
-prop_method: lanczos
+prop_method: chebyshev
 
 ! iteration type for itvolt exponential (jacobi or gauss_seidel)
 exp_it_type: gauss_seidel
@@ -74,7 +74,7 @@ chebyshev_terms: 1000
 chebyshev_threshold: 1.d-15 
 
 ! iteration type (options: short_time, jacobi, gauss_seidel, gmres)
-it_type: gmres
+it_type: jacobi
 
 ! number of quadrature points
 quad_pt: 5

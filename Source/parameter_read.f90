@@ -62,6 +62,8 @@ contains
     call conf%value_from_key('lancz_iterations', lancz_itnum)
     call conf%value_from_key('lancz_threshold', lanc_threshold)
     call conf%value_from_key('lancz_reortho', lancz_reortho)
+    call conf%value_from_key('chebyshev_terms', chebyshev_terms)
+    call conf%value_from_key('chebyshev_threshold',chebyshev_threshold)
     
     ! read banded matrix parameters
     call conf%value_from_key('band_num_sym_mat', band_num_sym_mat)

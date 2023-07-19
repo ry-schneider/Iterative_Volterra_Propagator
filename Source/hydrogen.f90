@@ -17,6 +17,7 @@ program hydrogen
   type(banded_sym_mat)       :: angular_v, v_mid, h_real, h_real2
   complex(8), allocatable    :: psi(:,:)
   real(8), allocatable       :: r_grid(:)
+  real(8), allocatable       :: eig_info(:,:)
   real(8)                    :: t
   integer                    :: i, j, r_reach, time_step, info
   integer                    :: max_iter
@@ -33,11 +34,15 @@ program hydrogen
   call initialize_hydrogen(psi, r_grid, r_reach)
   call construct_operators(r_grid, r_reach, h_grid, angular_v, v_mid, h_mid, h_real, h_real2)
 
+  call begin_timing
+
   if (soln_method == 'split_operator') then
      call short_time_half_step(h_mid, dt, r_grid(1:r_reach), psi(1:r_reach,:))
+  else if (soln_method == 'itvolt' .AND. itvolt_version == 'radial_cheby') then
+     allocate(eig_info(1:l_max,1:2))
+     ! call get_eig_info(h_real, r_grid, eig_info)
   end if
-
-  call begin_timing
+  
   t = 0
   max_iter = 0
   do time_step = 1,int(t_intv/dt)
@@ -60,6 +65,13 @@ program hydrogen
         else if (itvolt_version == 'full_lanczos') then
            call hydrogen_itvolt4(t, h_real2, angular_v, r_grid(1:r_reach), psi(1:r_reach,:), max_iter)
 
+        else if (itvolt_version == 'midpoint_lanczos') then
+           call hydrogen_itvolt5(t, h_real2, angular_v, r_grid(1:r_reach), psi(1:r_reach,:), max_iter)
+
+        else if (itvolt_version == 'radial_cheby') then
+           call get_eig_info(h_real2, r_grid(1:r_reach), eig_info)
+           call hydrogen_itvolt6(t, h_real2, angular_v, r_grid(1:r_reach), psi(1:r_reach,:), eig_info, max_iter)
+
         else
            print *, 'itvolt version not programmed'
            stop
@@ -75,6 +87,7 @@ program hydrogen
      t = t + dt
      if (mod(time_step,10) == 0) then
         print *, 'Time: ', t, 'Number of radial points: ', r_reach
+        print *, max_iter
      end if
 
   end do 
@@ -152,7 +165,7 @@ contains
 
     ! set initial dynamic grid and truncate
     do i = r_size,1,-1
-       if (abs(psi(i,1)) > 1.d-9) then
+       if (abs(psi(i,1)) > grid_tol) then
           r_reach = i
           exit
        end if
@@ -213,6 +226,39 @@ contains
     call angular_v%initialize(l_max, 1, v_diagonal, v_offdiagonal)
     
   end subroutine construct_angularv
+
+
+  ! finds eigenvalue information for each l-block of the (real) radial operator, to be used in chebyshev
+  subroutine get_eig_info(h_real, r_grid, eig_info)
+    type(banded_sym_mat), intent(in)  :: h_real
+    real(8), intent(in)               :: r_grid(:)
+    real(8)                           :: eig_info(:,:)
+    real(8), allocatable              :: diagonal(:), off_d(:), Z, work
+    integer                           :: d, i, j, info
+
+    d = size(r_grid)
+    allocate(diagonal(1:d), off_d(1:d-1))
+
+    !$OMP parallel do private(i,j,diagonal,off_d,info)
+    do i = 1,l_max
+       off_d = h_real%offdiagonal(:,1)
+       do j = 1,d
+          diagonal(j) = h_real%diagonal(j) + dble(i*(i-1))/(2d0*r_grid(j)**2)
+       end do
+
+       call dstev('N', d, diagonal, off_d, Z, 1, work, info)
+
+       if (info /= 0) then
+          print *, 'eigenvalue solve failed'
+          stop
+       end if
+
+       eig_info(i,1) = diagonal(1)
+       eig_info(i,2) = diagonal(d) - diagonal(1)
+    end do
+    !$OMP end parallel do
+    
+  end subroutine get_eig_info
 
 
   subroutine adjust_dynamic_grid(psi, h_grid, h_real, r_reach, h_mid, h_real2)
@@ -279,16 +325,13 @@ contains
        call coul90(momenta(i)*r_grid(1), -1d0/momenta(i), 0d0, l_max-1, coulomb_waves(1,:), GC, FCP, GCP, 0, ifail)
        call coul90(momenta(i)*r_grid(2), -1d0/momenta(i), 0d0, l_max-1, coulomb_waves(2,:), GC, FCP, GCP, 0, ifail)
        do j = 1,l_max
+          ! coulomb_waves(2,j) = 2d0*coulomb_waves(1,j)*(1-5d0*h**2/12d0*numerov_func(r_grid(1),momenta(i),j))&
+          !     /(1+h**2/12d0*numerov_func(r_grid(2),momenta(i),j))
           do k = 3,d
-             coulomb_waves(k,j) = (2d0*coulomb_waves(k-1,j)*(1-5d0*h**2/12d0*(1+2d0/(r_grid(k-1)*momenta(i)**2)&
-                  -j*(j-1)/(r_grid(k-1)*momenta(i))**2))-coulomb_waves(k-2,j)*(1+h**2/12d0*(1&
-                  +2d0/(r_grid(k-2)*momenta(i)**2)-j*(j-1)/(r_grid(k-2)*momenta(i))**2)))/(1&
-                  +h**2/12d0*(1+2d0/(r_grid(k)*momenta(i)**2)-j*(j-1)/(r_grid(k)*momenta(i))**2))
+             coulomb_waves(k,j) = (2d0*coulomb_waves(k-1,j)*(1-5d0*h**2/12d0*numerov_func(r_grid(k-1),momenta(i),j))&
+                  - coulomb_waves(k-2,j)*(1+h**2/12d0*numerov_func(r_grid(k-2),momenta(i),j)))&
+                  /(1+h**2/12d0*numerov_func(r_grid(k),momenta(i),j))
           end do
-       end do
-       
-       do j = 1,d
-          call coul90(momenta(i)*r_grid(j), -1d0/momenta(i), 0d0, l_max-1, coulomb_waves(j,:), GC, FCP, GCP, 0, ifail)
        end do
 
        ! integrate produce of psi and Coulomb functions and sum
@@ -407,6 +450,17 @@ contains
     
   end subroutine compute_ionization_probabilities
 
+  
+  ! evaluates function appearing in numerov at radial point r, momentum k, and angular l
+  function numerov_func(r, k, l)  result(ans)
+    real(8), intent(in)        :: r, k
+    integer, intent(in)        :: l
+    real(8)                    :: ans
+
+    ans = 1 + 2d0/(r*k**2) - (l*(l-1))/(r*k)**2
+    
+  end function numerov_func
+
 
   ! e^{-ih_mid(dt/2)}*psi done by crank-nicolson
   subroutine short_time_half_step(h_mid, local_dt, r_grid, psi)
@@ -512,11 +566,13 @@ contains
       phi(:,:,:) = iterative_ans(:,:,:)
 
       if (it_type == 'jacobi') then
+         !$OMP parallel do private(i,j)
          do i = 1,n
             do j = 1,d
                v_psi(j,:,i) = r_grid(j)*pulse(pt(i))*sb_matvec_mul(v,iterative_ans(j,:,i)) - ii*pot(j)*iterative_ans(j,:,i)
             end do
          end do
+         !$OMP end parallel do
 
          do k = 2,n
             b(:,:) = inhomogeneity(:,:,k)
@@ -893,6 +949,253 @@ contains
     
   end subroutine hydrogen_itvolt4
 
+
+  ! real exponentials (radial + r*E(t_midpoint) done via lanczos 
+  subroutine hydrogen_itvolt5(time, h_real, v, r_grid, psi, max_iters)
+    real(8), intent(in)                 :: time
+    type(banded_sym_mat), intent(in)    :: h_real, v
+    real(8), intent(in)                 :: r_grid(:)
+    complex(8)                          :: psi(:,:)
+    integer                             :: max_iters
+    type(banded_sym_mat)                :: mat, v_mat
+    real(8), allocatable                :: pt(:), wt(:,:), comp_wt(:,:), pot(:)
+    complex(8), allocatable             :: inhomogeneity(:,:,:), iterative_ans(:,:,:)
+    complex(8), allocatable             :: phi(:,:,:), v_psi(:,:,:), b(:,:)
+    logical                             :: converged
+    integer                             :: d, it_num, n, i, j, k, l, p
+
+    procedure(pulse_at_t_func), pointer  :: pulse
+    procedure(potential_func), pointer   :: potential
+
+    ! set up parameters
+    pulse => select_pulse_type(pulse_name)
+    potential => select_potential_type(potential_type)
+    d = size(r_grid)
+    it_num = 0
+    n = quad_pt
+
+    allocate(pt(1:n), wt(1:n,1:n-1), comp_wt(1:n,1:n-1), inhomogeneity(1:d,1:l_max,1:n), iterative_ans(1:d,1:l_max,1:n), &
+         phi(1:d,1:l_max,1:n), v_psi(1:d,1:l_max,1:n), b(1:d,1:l_max), pot(1:d))
+
+    ! compute quadrature points and weights
+    call lgr_weights(time, time+dt, pt, wt, n-2, quad_type)
+
+    comp_wt(:,1) = wt(:,1)
+    do i = 2,n-1
+       comp_wt(:,i) = comp_wt(:,i-1) + wt(:,i)
+    end do
+
+    pot(:) = potential(r_grid)
+
+    ! evaluate inhomogeneity at the quadrature points
+    inhomogeneity(:,:,1) = psi(:,:)
+    do j = 2,n
+       !$OMP parallel do private(i,k,mat)
+       do i = 1,l_max
+          mat = h_real
+          do k = 1,d
+             mat%diagonal(k) = mat%diagonal(k) + dble(i*(i-1))/(2d0*r_grid(k)**2) + r_grid(k)*pulse(time+0.5d0*dt)
+          end do
+          inhomogeneity(:,i,j) = lanczos_prop(mat, pt(j)-pt(1), psi(:,i))
+       end do
+       !$OMP end parallel do
+    end do
+
+    converged = .FALSE.
+    iterative_ans(:,:,:) = inhomogeneity(:,:,:)
+    v_mat = v
+    v_mat%diagonal = -pulse(time+0.5d0*dt)
+
+    ! iterate until converged
+    do while (.not. (converged .or. it_num >= it_cap))
+       phi(:,:,:) = iterative_ans(:,:,:)
+
+       if (it_type == 'jacobi') then
+          do i = 1,n
+             v_mat%offdiagonal = pulse(pt(i))*v%offdiagonal
+             do j = 1,d
+                v_psi(j,:,i) = r_grid(j)*sb_matvec_mul(v_mat,iterative_ans(j,:,i)) - ii*pot(j)*iterative_ans(j,:,i)
+             end do
+          end do
+
+          do k = 2,n
+             b(:,:) = inhomogeneity(:,:,k)
+
+             do j = 1,k-1
+                !$OMP parallel do private(l,p,mat)
+                do l = 1,l_max
+                   mat = h_real
+                   do p = 1,d
+                      mat%diagonal(p) = mat%diagonal(p) + dble(l*(l-1))/(2d0*r_grid(p)**2) + r_grid(p)*pulse(time+0.5d0*dt)
+                   end do
+                   b(:,l) = b(:,l) - ii*comp_wt(j,k-1)*lanczos_prop(mat, pt(k)-pt(j), v_psi(:,l,j))
+                end do
+                !$OMP end parallel do
+             end do
+
+             b(:,:) = b(:,:) - ii*comp_wt(k,k-1)*v_psi(:,:,k)
+
+             do j = k+1,n
+                !$OMP parallel do private(l,p,mat)
+                do l = 1,l_max
+                   mat = h_real
+                   do p = 1,d
+                      mat%diagonal(p) = mat%diagonal(p) + dble(l*(l-1))/(2d0*r_grid(p)**2) + r_grid(p)*pulse(time+0.5d0*dt)
+                   end do
+                   b(:,l) = b(:,l) - ii*comp_wt(j,k-1)*lanczos_prop(mat, pt(k)-pt(j), v_psi(:,l,j))
+                end do
+                !$OMP end parallel do
+             end do
+
+             iterative_ans(:,:,k) = b(:,:)
+          end do
+          
+       else
+          print *, 'ITVOLT iteration type not programmed'
+          stop
+          
+       end if
+
+       it_num = it_num + 1
+
+       ! test for convergence
+       converged = convergence_check(phi, iterative_ans, it_tolerance)
+       
+    end do
+
+    psi(:,:) = iterative_ans(:,:,n)
+
+    if (max_iters < it_num) then
+       max_iters = it_num
+    end if
+    
+  end subroutine hydrogen_itvolt5
+
+
+  ! real radial exponentials done by Chebyshev expansion
+  subroutine hydrogen_itvolt6(time, h_real, v, r_grid, psi, eig_info, max_iters)
+    real(8), intent(in)                 :: time
+    type(banded_sym_mat), intent(in)    :: h_real, v
+    real(8), intent(in)                 :: r_grid(:), eig_info(:,:)
+    complex(8)                          :: psi(:,:)
+    integer                             :: max_iters
+    type(banded_sym_mat)                :: mat
+    real(8), allocatable                :: pt(:), wt(:,:), comp_wt(:,:), pot(:)
+    complex(8), allocatable             :: inhomogeneity(:,:,:), iterative_ans(:,:,:)
+    complex(8), allocatable             :: phi(:,:,:), v_psi(:,:,:), b(:,:)
+    logical                             :: converged 
+    integer                             :: d, it_num, n, i, j, k, l, p
+
+    procedure(pulse_at_t_func), pointer  :: pulse
+    procedure(potential_func), pointer   :: potential
+
+    ! set up parameters
+    pulse => select_pulse_type(pulse_name)
+    potential => select_potential_type(potential_type)
+    d = size(r_grid)
+    it_num = 0
+    n = quad_pt
+
+    allocate(pt(1:n), wt(1:n,1:n-1), comp_wt(1:n,1:n-1), pot(1:d), inhomogeneity(1:d,1:l_max,1:n), &
+         iterative_ans(1:d,1:l_max,1:n), phi(1:d,1:l_max,1:n), v_psi(1:d,1:l_max,1:n),b(1:d,1:l_max))
+
+    ! compute quadrature points and weights
+    call lgr_weights(time, time+dt, pt, wt, n-2, quad_type)
+
+    comp_wt(:,1) = wt(:,1)
+    do i = 2,n-1
+       comp_wt(:,i) = comp_wt(:,i-1) + wt(:,i)
+    end do
+
+    pot(:) = potential(r_grid)
+
+    ! evaluate inhomogeneity at the quadrature points
+    inhomogeneity(:,:,1) = psi(:,:)
+    do j = 2,n
+       !$OMP parallel do private(i,k,mat)
+       do i = 1,l_max
+          mat = h_real
+          mat%e_min = eig_info(i,1)
+          mat%delta = eig_info(i,2)
+          do k = 1,d
+             mat%diagonal(k) = mat%diagonal(k) + dble(i*(i-1))/(2d0*r_grid(k)**2)
+          end do
+          inhomogeneity(:,i,j) = cheby_prop(mat, pt(j)-pt(1), psi(:,i))
+       end do
+       !$OMP end parallel do
+    end do
+
+    converged = .FALSE.
+    iterative_ans(:,:,:) = inhomogeneity(:,:,:)
+
+    ! iterate until converged
+    do while (.not. (converged .or. it_num >= it_cap))
+       phi(:,:,:) = iterative_ans(:,:,:)
+
+       if (it_type == 'jacobi') then
+          do i = 1,n
+             do j = 1,d
+                v_psi(j,:,i) = r_grid(j)*pulse(pt(i))*sb_matvec_mul(v,iterative_ans(j,:,i)) - ii*pot(j)*iterative_ans(j,:,i)
+             end do
+          end do
+
+          do k = 2,n
+             b(:,:) = inhomogeneity(:,:,k)
+
+             do j = 1,k-1
+                !$OMP parallel do private(l,p,mat)
+                do l = 1,l_max
+                   mat = h_real
+                   mat%e_min = eig_info(l,1)
+                   mat%delta = eig_info(l,2)
+                   do p = 1,d
+                      mat%diagonal(p) = mat%diagonal(p) + dble(l*(l-1))/(2d0*r_grid(p)**2)
+                   end do
+                   b(:,l) = b(:,l) - ii*comp_wt(j,k-1)*cheby_prop(mat, pt(k)-pt(j), v_psi(:,l,j))
+                end do
+                !$OMP end parallel do
+             end do
+
+             b(:,:) = b(:,:) - ii*comp_wt(k,k-1)*v_psi(:,:,k)
+
+             do j = k+1,n
+                !$OMP parallel do private(l,p,mat)
+                do l = 1,l_max
+                   mat = h_real
+                   mat%e_min = eig_info(l,1)
+                   mat%delta = eig_info(l,2)
+                   do p = 1,d
+                      mat%diagonal(p) = mat%diagonal(p) + dble(l*(l-1))/(2d0*r_grid(p)**2)
+                   end do
+                   b(:,l) = b(:,l) - ii*comp_wt(j,k-1)*cheby_prop(mat, pt(k)-pt(j), v_psi(:,l,j))
+                end do
+                !$OMP end parallel do
+             end do
+            
+             iterative_ans(:,:,k) = b(:,:)
+          end do
+          
+       else
+          print *, 'ITVOLT iteration type not programmed'
+          stop
+          
+       end if
+
+       it_num = it_num + 1
+
+       ! test for convergence
+       converged = convergence_check(phi, iterative_ans, it_tolerance)
+
+    end do
+
+    psi(:,:) = iterative_ans(:,:,n)
+
+    if (max_iters < it_num) then
+       max_iters = it_num
+    end if
+        
+  end subroutine hydrogen_itvolt6
+  
 
   function convergence_check(wave1, wave2, tolerance)  result(ans)
     complex(8), intent(in)        :: wave1(:,:,:), wave2(:,:,:)

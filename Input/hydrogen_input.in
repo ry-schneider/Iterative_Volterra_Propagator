@@ -10,7 +10,7 @@ spatial_step_size: 0.1d0
 grid_type: half_grid
 
 ! grid tolerance
-grid_tol: 1.d-7
+grid_tol: 1.d-10
 
 ! number of bands in finite difference approximation (1 is tridiagonal)
 band_num_sym_mat: 1
@@ -33,11 +33,11 @@ dE: 0.002
 pulse_type: linearly_polarized
 
 ! linearly polarized pulse parameters
-dressing_amplitude: 0.05338d0
+dressing_amplitude: .10676d0 !0.05338d0
 
 probing_amplitude: 0d0
 
-dressing_frequency: 0.11390d0
+dressing_frequency: .50256d0 !.25133d0 !0.11390d0
 
 probing_frequency: 0d0
 
@@ -45,7 +45,7 @@ dressing_phase: 3.14159265d0
 
 probing_phase: 0d0
 
-dressing_peak: 110.328d0 ! 4*pi/dressing_frequency
+dressing_peak: 25.0 !50.0d0 !110.328d0 ! 4*pi/dressing_frequency
 
 probing_peak: 0d0
 
@@ -62,7 +62,7 @@ absorber_amp: 5d0
 !********************PROPAGATION PARAMETERS******************************
 
 ! final propagation time
-total_time: 220 !220.656d0
+total_time: 50 !100 !220.656d0
 
 ! time step size (dt)
 time_step_size: 0.01d0
@@ -83,10 +83,16 @@ arnoldi_reortho: 50
 lancz_iterations: 50
 
 ! convergence threshold for lanczos
-lancz_threshold: 1.d-6
+lancz_threshold: 1.d-10
 
 ! number of vectors to reorthogonalize against at each lanczos step (at most lancz_iterations)
-lancz_reortho: 50
+lancz_reortho: 5
+
+! max number of terms in chebyshev expansion
+chebyshev_terms: 1000
+
+! threshold for truncating chebyshev expansion
+chebyshev_threshold: 1.d-12
 
 ! max number of GMRES iterations for crank-nicolson
 cn_gmres_max: 300
@@ -98,13 +104,13 @@ cn_gmres_tol: 1.d-2
 it_type: jacobi
 
 ! number of quadrature points
-quad_pt: 3
+quad_pt: 5
 
 ! type of quadrature (newton_cotes or gauss)
 quad_type: gauss
 
 ! convergence criteria for iteration
-it_tolerance: 1.d-7
+it_tolerance: 1.d-10
 
 ! cap on number of iterations
 it_cap: 50
@@ -127,6 +133,8 @@ soln_method: itvolt
   ! radial_arnoldi** - complex radial exponentials done by arnoldi
   ! split_operator_cn - full complex midpoint exponentials done with split operator and crank-nicolson
   ! full_lanczos - real midpoint exponentials done by lanczos (reusing vectors)
-itvolt_version: radial_lanczos
+  ! midpoint_lanczos** - real exponentials (radial + r*E(t_mid)) done by lanczos
+  ! radial_cheby** - real radial exponentials done by chebyshev
+itvolt_version: radial_cheby
 
 ! ** = exponentials are block paralellized where possible 

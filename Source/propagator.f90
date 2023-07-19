@@ -280,22 +280,19 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
     real(8)                                 :: eig(size(psi), size(psi))
     real(8)                                 :: work(2*size(psi)-2)
     integer                                 :: m, info, num_cheby, i, j
-    real(8)                                 :: delta, e_min
     complex(8)                              :: coeff(chebyshev_terms)
     logical                                 :: truncated
-
-    e_min = minval(mat%eigenvalues)
-    delta = maxval(mat%eigenvalues) - e_min
+    
 
     ! find expansion coefficients (truncate once below tolerance)
     coeff(:) = 0
-    coeff(1) = zexp(-ii*(0.50d0*delta + e_min)*local_dt)*bessel_jn(0, 0.50d0*delta*local_dt)
+    coeff(1) = zexp(-ii*(0.50d0*mat%delta + mat%e_min)*local_dt)*bessel_jn(0, 0.50d0*mat%delta*local_dt)
     
     num_cheby = 1
     i = 2
     truncated = .FALSE.
     do while (.not. truncated)
-       coeff(i) = 2.0d0*zexp(-ii*(0.50d0*delta + e_min)*local_dt)*bessel_jn(i-1, 0.50d0*delta*local_dt)
+       coeff(i) = 2.0d0*zexp(-ii*(0.50d0*mat%delta + mat%e_min)*local_dt)*bessel_jn(i-1, 0.50d0*mat%delta*local_dt)
        if ((abs(coeff(i)) <= chebyshev_threshold) .or. (i == chebyshev_terms)) then
           num_cheby = i
           truncated = .TRUE.
@@ -303,13 +300,17 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
        
        i = i+1
     end do
+
+    if (num_cheby  == chebyshev_terms) then
+       print *, 'chebyshev term limit hit'
+       stop
+    end if
     
     ! construct normalized version of mat
     mat_norm = mat
     ones(:) = 1
-    mat_norm%diagonal(:) = (2.0d0/delta)*(mat_norm%diagonal(:) - e_min*ones(:)) - ones(:)
-    mat_norm%offdiagonal(:,:) = (2.0d0/delta)*mat_norm%offdiagonal(:,:)
-    ! mat_norm%offdiagonal(:,1) = (2.0d0/delta)*mat_norm%offdiagonal(:,1)
+    mat_norm%diagonal(:) = (2.0d0/mat%delta)*(mat_norm%diagonal(:) - mat%e_min*ones(:)) - ones(:)
+    mat_norm%offdiagonal(:,:) = (2.0d0/mat%delta)*mat_norm%offdiagonal(:,:)
 
     ! recursively apply expansion to input vector
     phi_old(:) = psi(:)
@@ -408,6 +409,11 @@ public  propagator_func, initialize_variables, select_propagator_type, itvolt_ex
           k = k+1
           phi(:) = ans(:)
        end do
+
+       if (k >= lancz_itnum) then
+          print *, 'STOP: lanczos limit hit'
+          stop
+       end if
 
     end if
 

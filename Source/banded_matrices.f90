@@ -13,6 +13,7 @@ module banded_matrices
     real(8), allocatable    :: offdiagonal(:,:)
     real(8), allocatable    :: eigenvalues(:)
     real(8), allocatable    :: eigenvectors(:,:)
+    real(8)                 :: e_min, delta
     logical                 :: init = .false.
 
   contains
@@ -72,7 +73,7 @@ contains
     allocate(self%diagonal(m_size))
     allocate(self%offdiagonal(m_size-1, b_size))
     allocate(self%eigenvalues(m_size))
-    ! allocate(self%eigenvectors(m_size, m_size))
+    ! allocate(self%eigenvectors(m_size, m_size)
 
     do j = 1, b_size
       do i = 1, m_size - 1
@@ -461,6 +462,9 @@ contains
        print *, 'Eigensolver failed.'
        stop
     end if
+
+    mat%e_min = minval(mat%eigenvalues)
+    mat%delta = maxval(mat%eigenvalues) - mat%e_min
     
   end subroutine d_sb_eigensolve
 
@@ -506,6 +510,9 @@ contains
        print *, 'Eigensolver failed.'
        stop
     end if
+
+    mat%e_min = minval(mat%eigenvalues)
+    mat%delta = maxval(mat%eigenvalues) - mat%e_min
     
   end subroutine d_sb_eigenvalues
 
