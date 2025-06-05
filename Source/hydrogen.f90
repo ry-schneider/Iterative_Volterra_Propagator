@@ -233,11 +233,12 @@ contains
     type(banded_sym_mat), intent(in)  :: h_real
     real(8), intent(in)               :: r_grid(:)
     real(8)                           :: eig_info(:,:)
-    real(8), allocatable              :: diagonal(:), off_d(:), Z, work
+    real(8), allocatable              :: diagonal(:), off_d(:), Z(:,:), work(:)
     integer                           :: d, i, j, info
 
     d = size(r_grid)
     allocate(diagonal(1:d), off_d(1:d-1))
+    allocate(Z(1:d,1:l_max), work(1:3*d))
 
     !$OMP parallel do private(i,j,diagonal,off_d,info)
     do i = 1,l_max
